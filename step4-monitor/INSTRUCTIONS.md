@@ -28,10 +28,9 @@ Computed from the last `neb_result.json`:
 
 Written to `outputs/reaction_{id:04d}/diagnostics.json`.
 
-## LLM intervention selection
+## Intervention selection
 
-The diagnostic payload is sent to the LLM agent via OpenAI function calling.
-The agent selects exactly one intervention per retry using one of these tools:
+Read `diagnostics.json` and select exactly one intervention:
 
 ```
 set_n_images(n: int)
@@ -48,8 +47,8 @@ tighten_endpoint_relaxation(fmax: float)
     suggesting endpoints are not true minima; re-runs step 2 with tighter fmax
 ```
 
-The agent must also provide a brief `reasoning` string explaining the choice.
-This is logged to `outputs/reaction_{id:04d}/retry_log.json`.
+The chosen intervention and reasoning are logged to
+`outputs/reaction_{id:04d}/retry_log.json`.
 
 ## Retry loop (retry.py)
 

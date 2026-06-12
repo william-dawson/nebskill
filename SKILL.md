@@ -86,12 +86,6 @@ Execute steps in order. Read each step's INSTRUCTIONS.md before executing.
 4. **Monitor & retry** → [step4-monitor/INSTRUCTIONS.md](step4-monitor/INSTRUCTIONS.md)
 5. **Analyze & report** → [step5-analyze/INSTRUCTIONS.md](step5-analyze/INSTRUCTIONS.md)
 
-## Workflow — batch mode
-
-Read [step0-batch/INSTRUCTIONS.md](step0-batch/INSTRUCTIONS.md) for the full
-batch workflow. The single-job pipeline (steps 1–5) runs unchanged inside
-each SLURM job.
-
 ## Output artifacts
 
 All outputs written to `outputs/reaction_{id:04d}/`:
@@ -99,8 +93,6 @@ All outputs written to `outputs/reaction_{id:04d}/`:
 - `energy_profile.png` — energy vs image index with barrier annotation
 - `report.json` — barrier height, TS geometry, MACE-OFF vs DFT reference
 - `convergence.log` — per-step force history for both NEB phases
-
-Batch aggregation writes `outputs/summary.json` and `outputs/summary.png`.
 
 ## References
 
