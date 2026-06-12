@@ -11,12 +11,13 @@ description: >
   high-throughput screening of organic reactions.
 license: MIT
 compatibility: >
-  Requires Python 3.12+, uv, ASE, mace-torch, h5py, openai, globus-sdk.
-  Needs an active ALCF allocation with Globus authentication (run
-  agent/inference_auth_token.py auth on first use). GPU recommended for
+  Requires uv (https://docs.astral.sh/uv/getting-started/installation/).
+  All Python dependencies (ASE, MACE-OFF, h5py, openai, globus-sdk, etc.)
+  are installed automatically on first run via uv. GPU recommended for
   MACE-OFF but CPU is supported via auto-detection. Internet access
   required for model and dataset auto-download. SLURM required for
-  batch mode.
+  batch mode. On GPU clusters with a custom PyTorch build, run
+  `uv sync` once after installing your preferred torch wheel.
 metadata:
   author: knomura
   version: "0.1.0"
@@ -41,12 +42,16 @@ from a shared queue.
 
 ## Prerequisites
 
-1. **Globus token**: must be valid before any LLM calls.
+1. **uv**: the only system requirement. Install once with:
+   `curl -LsSf https://astral.sh/uv/install.sh | sh`
+   All Python dependencies install automatically on first `uv run`.
+   First run pulls ~1 GB (PyTorch + MACE-OFF); subsequent runs are instant.
+2. **Globus token**: must be valid before any LLM calls.
    If expired, direct the user to run:
-   `python agent/inference_auth_token.py auth`
-2. **Transition1x dataset**: auto-downloaded to `data/Transition1x.h5` (~6.2 GB)
+   `uv run python agent/inference_auth_token.py auth`
+3. **Transition1x dataset**: auto-downloaded to `data/Transition1x.h5` (~6.2 GB)
    if missing.
-3. **MACE-OFF model**: auto-downloaded and cached to `~/.cache/mace/` on first
+4. **MACE-OFF model**: auto-downloaded and cached to `~/.cache/mace/` on first
    use (~17.5 MB per model size).
 
 ## Clarifying questions (always ask before running)

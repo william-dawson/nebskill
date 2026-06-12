@@ -7,8 +7,8 @@ failure report.
 ## Scripts
 
 ```bash
-python step4-monitor/diagnostics.py --reaction-id INT   # compute diagnostic payload
-python step4-monitor/retry.py --reaction-id INT --config assets/neb_defaults.yaml
+uv run python step4-monitor/diagnostics.py --reaction-id INT   # compute diagnostic payload
+uv run python step4-monitor/retry.py --reaction-id INT --config assets/neb_defaults.yaml
 ```
 
 `retry.py` orchestrates the full retry loop: calls diagnostics, sends payload

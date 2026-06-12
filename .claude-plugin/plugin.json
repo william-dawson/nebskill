@@ -1,0 +1,9 @@
+{
+  "name": "nebskill",
+  "description": "Nudged Elastic Band calculations for reaction barriers using MACE-OFF and Transition1x",
+  "version": "0.1.0",
+  "author": {
+    "name": "knomura"
+  },
+  "license": "MIT"
+}

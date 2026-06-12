@@ -1,7 +1,16 @@
 [project]
 name = "nebskill"
 version = "0.1.0"
-description = "Add your description here"
+description = "Nudged Elastic Band calculations for reaction barriers using MACE-OFF and Transition1x"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "ase>=3.23",
+    "mace-torch>=0.3",
+    "h5py>=3.10",
+    "openai>=1.30",
+    "globus-sdk>=3.40",
+    "pyyaml>=6.0",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+]

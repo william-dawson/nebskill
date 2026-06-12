@@ -25,7 +25,7 @@ Valid statuses: `pending`, `running`, `done`, `failed`.
 ### submit.py — launch N jobs from the queue
 
 ```bash
-python step0-batch/submit.py --n-jobs 5 [--dry-run]
+uv run python step0-batch/submit.py --n-jobs 5 [--dry-run]
 ```
 
 - Claims the next N `pending` reactions from queue.json (file-locked)
@@ -36,15 +36,15 @@ python step0-batch/submit.py --n-jobs 5 [--dry-run]
 ### queue.py — queue management utilities
 
 ```bash
-python step0-batch/queue.py init --n-reactions 20   # populate queue with IDs 0..19
-python step0-batch/queue.py status                   # print summary table
-python step0-batch/queue.py requeue --status failed  # reset failed jobs to pending
+uv run python step0-batch/queue.py init --n-reactions 20   # populate queue with IDs 0..19
+uv run python step0-batch/queue.py status                   # print summary table
+uv run python step0-batch/queue.py requeue --status failed  # reset failed jobs to pending
 ```
 
 ### aggregate.py — collect results after all jobs complete
 
 ```bash
-python step0-batch/aggregate.py
+uv run python step0-batch/aggregate.py
 ```
 
 Reads all `outputs/reaction_*/report.json` files and produces:
@@ -55,19 +55,18 @@ Reads all `outputs/reaction_*/report.json` files and produces:
 
 Each submitted job runs:
 ```bash
-source .venv/bin/activate
-python agent/llm_agent.py --reaction-id $REACTION_ID --config assets/neb_defaults.yaml
+uv run python agent/llm_agent.py --reaction-id $REACTION_ID --config assets/neb_defaults.yaml
 ```
 
 SLURM settings come from `assets/neb_defaults.yaml` (batch section).
 
 ## Workflow
 
-1. Initialize queue: `python step0-batch/queue.py init --n-reactions N`
-2. Submit jobs: `python step0-batch/submit.py --n-jobs N`
-3. Monitor: `python step0-batch/queue.py status` (run periodically)
-4. Requeue any failures: `python step0-batch/queue.py requeue --status failed`
-5. Aggregate: `python step0-batch/aggregate.py`
+1. Initialize queue: `uv run python step0-batch/queue.py init --n-reactions N`
+2. Submit jobs: `uv run python step0-batch/submit.py --n-jobs N`
+3. Monitor: `uv run python step0-batch/queue.py status` (run periodically)
+4. Requeue any failures: `uv run python step0-batch/queue.py requeue --status failed`
+5. Aggregate: `uv run python step0-batch/aggregate.py`
 
 ## Notes
 

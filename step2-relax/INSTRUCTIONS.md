@@ -8,7 +8,7 @@ convergence if used directly.
 ## Script
 
 ```bash
-python step2-relax/relax_endpoints.py --reaction-id INT --config assets/neb_defaults.yaml
+uv run python step2-relax/relax_endpoints.py --reaction-id INT --config assets/neb_defaults.yaml
 ```
 
 Reads `outputs/reaction_{id:04d}/endpoints.json`.

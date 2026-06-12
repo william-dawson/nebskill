@@ -17,19 +17,14 @@ echo "  Config:      ${CONFIG}"
 echo "  NEB root:    ${NEB_ROOT}"
 
 # ── environment ────────────────────────────────────────────────────────────
-# Activate the shared venv. Adjust path if your venv is elsewhere.
-VENV="${NEB_ROOT}/../.venv"
-if [[ ! -f "${VENV}/bin/activate" ]]; then
-    # try sibling of the project root
-    VENV="${NEB_ROOT}/../../.venv"
-fi
-source "${VENV}/bin/activate"
-echo "  Python:      $(which python)  ($(python --version))"
+# uv manages the virtualenv automatically from pyproject.toml.
+# On GPU clusters with a custom PyTorch build, run `uv sync` once after
+# installing your preferred torch wheel so uv does not overwrite it.
+cd "${NEB_ROOT}"
+echo "  Python:      $(uv run python --version)"
 
 # ── run ────────────────────────────────────────────────────────────────────
-cd "${NEB_ROOT}"
-
-python agent/llm_agent.py \
+uv run python agent/llm_agent.py \
     --reaction-id "${REACTION_ID}" \
     --config "${CONFIG}" \
     --defaults
