@@ -1,11 +1,12 @@
 """Auto-download Transition1x.h5 with resume support."""
-import os
+import argparse
 import sys
-import requests
 from pathlib import Path
+
+import requests
 from tqdm import tqdm
 
-URL = "https://ndownloader.figshare.com/files/36035789"
+URL           = "https://ndownloader.figshare.com/files/36035789"
 EXPECTED_SIZE = 6_600_000_000  # ~6.2 GB
 
 
@@ -18,7 +19,7 @@ def download(dest: Path) -> None:
         return
 
     headers = {"Range": f"bytes={existing}-"} if existing else {}
-    mode = "ab" if existing else "wb"
+    mode    = "ab" if existing else "wb"
 
     print(f"Downloading Transition1x dataset to {dest}")
     if existing:
@@ -38,6 +39,13 @@ def download(dest: Path) -> None:
     print(f"Download complete: {dest}")
 
 
+def main():
+    parser = argparse.ArgumentParser(description="Download Transition1x dataset")
+    parser.add_argument("--dest", default="data/Transition1x.h5",
+                        help="Destination path (default: data/Transition1x.h5)")
+    args = parser.parse_args()
+    download(Path(args.dest))
+
+
 if __name__ == "__main__":
-    dest = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data/Transition1x.h5")
-    download(dest)
+    main()

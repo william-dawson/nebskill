@@ -2,109 +2,136 @@
 name: nebskill
 description: >
   Runs Nudged Elastic Band (NEB) calculations to find minimum energy paths
-  and reaction barriers for organic molecules. Uses MACE-OFF as the
+  and reaction barriers for organic molecules. Uses MACE-OFF23 as the
   interatomic potential and sources atomic configurations from the
-  Transition1x dataset. Supports both single interactive runs and
-  high-throughput batch mode (up to 20 parallel jobs via SLURM).
-  Activates when the user asks about transition states, reaction barriers,
-  minimum energy paths, activation energies, NEB calculations, or
-  high-throughput screening of organic reactions.
+  Transition1x dataset. Activates when the user asks about transition states,
+  reaction barriers, minimum energy paths, activation energies, or NEB
+  calculations for organic molecules.
 license: MIT
 compatibility: >
-  Requires Python 3.12+, uv, ASE, mace-torch, h5py, openai, globus-sdk.
-  Needs an active ALCF allocation with Globus authentication (run
-  agent/inference_auth_token.py auth on first use). GPU recommended for
-  MACE-OFF but CPU is supported via auto-detection. Internet access
-  required for model and dataset auto-download. SLURM required for
-  batch mode.
+  Requires uv (https://docs.astral.sh/uv/getting-started/installation/).
+  All Python dependencies install automatically via uv. GPU recommended;
+  CPU supported but slow for MACE-OFF. Internet access required for model
+  and dataset downloads on first use.
 metadata:
   author: knomura
   version: "0.1.0"
   dataset: transition1x
   potential: mace-off
-  llm-endpoint: alcf-sophia
-  llm-model: Qwen/Qwen3-32B
 allowed-tools: Bash Read Write
 ---
 
 ## Overview
 
-This skill finds the minimum energy path (MEP) and reaction barrier between
-reactant and product configurations using the Nudged Elastic Band (NEB) method.
-Reaction endpoints are sourced from the Transition1x dataset. The MACE-OFF23
-machine learning potential handles force evaluations. An LLM agent
-(Qwen3-32B via ALCF Sophia) selects parameters, monitors convergence,
-adaptively retries on failure, and interprets results.
+Finds the minimum energy path (MEP) and activation barrier between reactant
+and product configurations using the Nudged Elastic Band method. Reaction
+endpoints come from the Transition1x dataset (~20k organic reactions with DFT
+reference data). MACE-OFF23 handles force evaluations.
 
-For batch mode, up to 20 independent NEB jobs can be submitted as SLURM jobs
-from a shared queue.
+References for background reading:
+- [NEB method and parameters](references/neb_method.md)
+- [MACE-OFF usage](references/mace_off_usage.md)
+- [Transition1x dataset schema](references/transition1x_schema.md)
 
-## Prerequisites
+---
 
-1. **Globus token**: must be valid before any LLM calls.
-   If expired, direct the user to run:
-   `python agent/inference_auth_token.py auth`
-2. **Transition1x dataset**: auto-downloaded to `data/Transition1x.h5` (~6.2 GB)
-   if missing.
-3. **MACE-OFF model**: auto-downloaded and cached to `~/.cache/mace/` on first
-   use (~17.5 MB per model size).
+## Step 0 — Check prerequisites
 
-## Clarifying questions (always ask before running)
+Before doing anything else, verify the environment is ready.
 
-Before launching, ask the user:
+### Is setup complete?
 
-> "Would you like to use all default parameters, or customize any settings?"
-> - **[1] Use all defaults** — proceeds immediately with the values below
-> - **[2] Customize** — review and override individual parameters
+Check whether the nebskill commands are installed:
+```bash
+nebskill-load --help
+```
 
-Default values:
+If the command is not found, the package has not been installed. Tell the user:
+> "The nebskill package isn't installed yet. Run `/nebskill:setup` first."
+Stop and do not proceed until setup is complete.
 
-| Parameter | Default |
-|---|---|
-| Mode | `single` |
-| Reaction index | next pending in queue |
-| MACE-OFF model size | `medium` |
-| Number of NEB images | auto (`max(9, round(path_length/1.0))`) |
-| Spring constant k | `0.1 eV/Å` |
-| Final convergence fmax | `0.05 eV/Å` |
-| Max retry attempts | `3` |
+### Is the dataset present?
 
-If the user chooses **[2] Customize**, ask about each parameter one at a time,
-showing the default and accepted options.
+Check for the Transition1x dataset:
+```bash
+ls -lh data/Transition1x.h5
+```
 
-## Workflow — single job
+If missing, offer to download it now (~6.2 GB, resumes if interrupted):
+```bash
+nebskill-download
+```
+Warn the user this will take a while on first run and show progress.
 
-Execute steps in order. Read each step's INSTRUCTIONS.md before executing.
+---
+
+## Step 1 — Choose a reaction
+
+Ask the user:
+> "Which reaction would you like to run? You can give a specific index
+> (0–9999), or I can pick the next one automatically."
+
+If they say "pick one" or give no preference, use reaction index 0 or the
+lowest index that has no existing output directory under `outputs/`.
+
+Show the user what index will be used before proceeding.
+
+---
+
+## Step 2 — Review and confirm parameters
+
+Read `assets/neb_defaults.yaml` and `assets/neb_local.yaml` and display the
+active configuration:
+
+| Parameter | Value | Source |
+|---|---|---|
+| MACE-OFF model size | medium | default |
+| NEB images | auto | default |
+| Spring constant k | 0.1 eV/Å | default |
+| Phase 1 fmax | 0.3 eV/Å | default |
+| Phase 2 fmax | 0.05 eV/Å | default |
+| Max retry attempts | 3 | default |
+| SLURM partition | ... | neb_local.yaml |
+
+Then ask:
+> "Shall I proceed with these settings, or would you like to change anything?"
+
+If the user wants to change a parameter, note the override — it will be passed
+as a CLI flag to the relevant script. Do not modify the yaml files.
+
+---
+
+## Step 3 — Run the pipeline
+
+Execute each step in order. Read the step's INSTRUCTIONS.md before running it,
+then report a brief summary of what happened before moving to the next.
 
 1. **Load reaction** → [step1-load/INSTRUCTIONS.md](step1-load/INSTRUCTIONS.md)
+   - Report: formula, number of atoms, DFT barrier from Transition1x
+   
 2. **Relax endpoints** → [step2-relax/INSTRUCTIONS.md](step2-relax/INSTRUCTIONS.md)
+   - Report: converged fmax for reactant and product, optimizer used
+
 3. **Run NEB** → [step3-neb/INSTRUCTIONS.md](step3-neb/INSTRUCTIONS.md)
-4. **Monitor & retry** → [step4-monitor/INSTRUCTIONS.md](step4-monitor/INSTRUCTIONS.md)
+   - Report: whether phase 1 and phase 2 converged, final fmax, steps taken
+
+4. **Monitor & retry if needed** → [step4-monitor/INSTRUCTIONS.md](step4-monitor/INSTRUCTIONS.md)
+   - Only if step 3 did not converge
+   - Report: diagnosed failure mode, intervention chosen, outcome
+
 5. **Analyze & report** → [step5-analyze/INSTRUCTIONS.md](step5-analyze/INSTRUCTIONS.md)
+   - Report: forward and reverse barriers in eV and kcal/mol, MACE-OFF vs DFT
+     error, location of the transition state image
 
-## Workflow — batch mode
+---
 
-Read [step0-batch/INSTRUCTIONS.md](step0-batch/INSTRUCTIONS.md) for the full
-batch workflow. The single-job pipeline (steps 1–5) runs unchanged inside
-each SLURM job.
+## Step 4 — Summarise results
 
-## Output artifacts
+After all steps complete, give the user a plain-language summary:
 
-All outputs written to `outputs/reaction_{id:04d}/`:
-- `neb_trajectory.xyz` — full NEB path, all images and steps
-- `energy_profile.png` — energy vs image index with barrier annotation
-- `report.json` — barrier height, TS geometry, MACE-OFF vs DFT reference
-- `convergence.log` — per-step force history for both NEB phases
-
-Batch aggregation writes `outputs/summary.json` and `outputs/summary.png`.
-
-## References
-
-- [NEB method](references/neb_method.md)
-- [MACE-OFF usage](references/mace_off_usage.md)
-- [Transition1x schema](references/transition1x_schema.md)
-- [ALCF API](references/alcf_api.md)
-
-## Default parameters
-
-See [assets/neb_defaults.yaml](assets/neb_defaults.yaml).
+- Forward barrier (eV and kcal/mol)
+- Reverse barrier (eV and kcal/mol)
+- How MACE-OFF compares to the Transition1x DFT reference (error in eV and %)
+- Where the transition state sits (image index out of total)
+- Any convergence difficulties and how they were resolved
+- Output files written to `outputs/reaction_{id:04d}/`

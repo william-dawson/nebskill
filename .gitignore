@@ -1,0 +1,8 @@
+assets/neb_local.yaml
+outputs/
+data/
+queue.json
+__pycache__/
+*.pyc
+.venv/
+.python-version

@@ -6,12 +6,12 @@ the LLM agent's final interpretation for the user.
 ## Scripts
 
 ```bash
-python step5-analyze/analyze.py  --reaction-id INT --config assets/neb_defaults.yaml
-python step5-analyze/plot.py     --reaction-id INT
-python step5-analyze/writer.py   --reaction-id INT
+nebskill-analyze  --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-plot     --reaction-id INT
+nebskill-writer   --reaction-id INT
 ```
 
-All three are called in sequence by `agent/llm_agent.py` after convergence.
+All three are called in sequence after convergence.
 
 ## analyze.py — compute results
 
@@ -62,35 +62,11 @@ Produces `outputs/reaction_{id:04d}/energy_profile.png`:
 - `convergence.log`: tab-separated, one row per optimizer step:
   `step | phase | fmax | max_image_force | time_s`
 
-## Batch aggregation (step0-batch/aggregate.py)
+## Interpretation (final step)
 
-After all jobs complete, `aggregate.py` reads all `report.json` files and
-writes:
-
-`outputs/summary.json`:
-```json
-{
-  "n_total": 20,
-  "n_done": 18,
-  "n_failed": 2,
-  "barrier_mean_ev": 1.18,
-  "barrier_std_ev": 0.34,
-  "mace_dft_mae_ev": 0.09,
-  "mace_dft_rmse_ev": 0.13
-}
-```
-
-`outputs/summary.png`: two panels
-- Left: histogram of MACE-OFF forward barriers
-- Right: parity plot of MACE-OFF vs DFT barriers with MAE annotation
-
-## LLM interpretation (final step)
-
-After artifacts are written, the agent generates a natural language summary
-for the user covering:
+After artifacts are written, summarise the results for the user covering:
 
 1. Forward and reverse barriers in eV and kcal/mol
 2. How MACE-OFF compares to the Transition1x DFT reference
 3. Location and character of the transition state
 4. Any convergence issues encountered and how they were resolved
-5. For batch mode: aggregate accuracy statistics and failure analysis

@@ -6,7 +6,7 @@ NEB calculation: standard NEB followed by Climbing Image NEB (CI-NEB).
 ## Script
 
 ```bash
-python step3-neb/neb_runner.py --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-neb --reaction-id INT --config assets/neb_defaults.yaml
 ```
 
 Reads `outputs/reaction_{id:04d}/relaxed_endpoints.json`.
