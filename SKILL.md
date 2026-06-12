@@ -10,9 +10,9 @@ description: >
 license: MIT
 compatibility: >
   Requires uv (https://docs.astral.sh/uv/getting-started/installation/).
-  All Python dependencies (ASE, MACE-OFF, h5py, etc.) install automatically
-  via uv. GPU recommended but CPU is supported. Internet access required for
-  model and dataset downloads on first use.
+  All Python dependencies install automatically via uv. GPU recommended;
+  CPU supported but slow for MACE-OFF. Internet access required for model
+  and dataset downloads on first use.
 metadata:
   author: knomura
   version: "0.1.0"

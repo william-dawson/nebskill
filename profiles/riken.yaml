@@ -1,13 +1,5 @@
 # RIKEN RCCS AI4S Supercomputer
-# Overrides assets/neb_defaults.yaml for this machine.
 # Do not edit directly — managed by /nebskill:setup.
-batch:
-  slurm_partition: 1n1gpu
-  slurm_time: "96:00:00"
-  slurm_nodes: 1
-  slurm_gpus_per_node: 1
-  slurm_account: ""     # filled in by /nebskill:setup
-
 uv:
   # PyTorch index for CUDA 13.2. Verify the exact URL at:
   # https://download.pytorch.org/whl/

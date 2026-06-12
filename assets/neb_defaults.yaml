@@ -1,10 +1,8 @@
 # Default parameters for NEB calculations.
-# All values can be overridden by the LLM agent or user prompt.
 
 dataset:
   path: data/Transition1x.h5
   download_url: https://ndownloader.figshare.com/files/36035789
-  queue_file: queue.json
 
 calculator:
   model: mace-off
@@ -38,12 +36,3 @@ retry:
 filter:
   min_barrier_ev: 0.1         # skip reactions with barrier below this
   min_segment_frames: 2       # min frames on each side of TS
-
-batch:
-  max_jobs: 20
-  default_n_jobs: 5
-  slurm_partition: gpu
-  slurm_time: "02:00:00"
-  slurm_nodes: 1
-  slurm_gpus_per_node: 1
-  slurm_account: m5047           # NERSC project account

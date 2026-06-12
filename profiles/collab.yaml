@@ -1,10 +1,5 @@
-# Collaborator machine (NERSC/ALCF setup).
-# The defaults in assets/neb_defaults.yaml already match this machine;
-# only the account is machine-specific.
+# Collaborator machine.
 # Do not edit directly — managed by /nebskill:setup.
-batch:
-  slurm_account: ""     # filled in by /nebskill:setup
-
 uv:
   # No torch index override — uv picks the default CUDA wheel from PyPI.
   torch_index_name: ""
