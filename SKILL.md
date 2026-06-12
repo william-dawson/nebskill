@@ -29,9 +29,9 @@ endpoints come from the Transition1x dataset (~20k organic reactions with DFT
 reference data). MACE-OFF23 handles force evaluations.
 
 References for background reading:
-- [NEB method and parameters](references/neb_method.md)
-- [MACE-OFF usage](references/mace_off_usage.md)
-- [Transition1x dataset schema](references/transition1x_schema.md)
+- `${CLAUDE_PLUGIN_ROOT}/references/neb_method.md`
+- `${CLAUDE_PLUGIN_ROOT}/references/mace_off_usage.md`
+- `${CLAUDE_PLUGIN_ROOT}/references/transition1x_schema.md`
 
 ---
 
@@ -106,20 +106,20 @@ as a CLI flag to the relevant script. Do not modify the yaml files.
 Execute each step in order. Read the step's INSTRUCTIONS.md before running it,
 then report a brief summary of what happened before moving to the next.
 
-1. **Load reaction** → [step1-load/INSTRUCTIONS.md](step1-load/INSTRUCTIONS.md)
+1. **Load reaction** — read `${CLAUDE_PLUGIN_ROOT}/step1-load/INSTRUCTIONS.md`
    - Report: formula, number of atoms, DFT barrier from Transition1x
-   
-2. **Relax endpoints** → [step2-relax/INSTRUCTIONS.md](step2-relax/INSTRUCTIONS.md)
+
+2. **Relax endpoints** — read `${CLAUDE_PLUGIN_ROOT}/step2-relax/INSTRUCTIONS.md`
    - Report: converged fmax for reactant and product, optimizer used
 
-3. **Run NEB** → [step3-neb/INSTRUCTIONS.md](step3-neb/INSTRUCTIONS.md)
+3. **Run NEB** — read `${CLAUDE_PLUGIN_ROOT}/step3-neb/INSTRUCTIONS.md`
    - Report: whether phase 1 and phase 2 converged, final fmax, steps taken
 
-4. **Monitor & retry if needed** → [step4-monitor/INSTRUCTIONS.md](step4-monitor/INSTRUCTIONS.md)
+4. **Monitor & retry if needed** — read `${CLAUDE_PLUGIN_ROOT}/step4-monitor/INSTRUCTIONS.md`
    - Only if step 3 did not converge
    - Report: diagnosed failure mode, intervention chosen, outcome
 
-5. **Analyze & report** → [step5-analyze/INSTRUCTIONS.md](step5-analyze/INSTRUCTIONS.md)
+5. **Analyze & report** — read `${CLAUDE_PLUGIN_ROOT}/step5-analyze/INSTRUCTIONS.md`
    - Report: forward and reverse barriers in eV and kcal/mol, MACE-OFF vs DFT
      error, location of the transition state image
 

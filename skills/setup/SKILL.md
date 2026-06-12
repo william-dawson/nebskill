@@ -26,10 +26,10 @@ Run:
 hostname
 ```
 
-- Contains `r-ccs.riken.jp` → **RIKEN AI4S** — use `profiles/riken.yaml`
+- Contains `r-ccs.riken.jp` → **RIKEN AI4S** — use `${CLAUDE_PLUGIN_ROOT}/profiles/riken.yaml`
 - Anything else → ask: "Which machine is this — RIKEN or collaborator?"
-  - collaborator → use `profiles/collab.yaml`
-  - neither → list `profiles/` and ask which to use
+  - collaborator → use `${CLAUDE_PLUGIN_ROOT}/profiles/collab.yaml`
+  - neither → list `${CLAUDE_PLUGIN_ROOT}/profiles/` and ask which to use
 
 Read the chosen profile to get the `uv.torch_index_url` value.
 

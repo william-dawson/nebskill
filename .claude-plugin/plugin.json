@@ -1,9 +1,15 @@
 {
+  "$schema": "https://claude.ai/schema/plugin.json",
   "name": "nebskill",
-  "description": "Nudged Elastic Band calculations for reaction barriers using MACE-OFF and Transition1x",
+  "displayName": "NEB Skill",
   "version": "0.1.0",
+  "description": "Nudged Elastic Band calculations for reaction barriers on organic molecules using MACE-OFF23 and the Transition1x dataset.",
+  "keywords": ["computational-chemistry", "NEB", "MACE", "reaction-barriers", "molecular-simulation", "ASE"],
   "author": {
-    "name": "knomura"
+    "name": "william-dawson",
+    "url": "https://github.com/william-dawson"
   },
+  "repository": "https://github.com/william-dawson/nebskill",
+  "homepage": "https://github.com/william-dawson/nebskill",
   "license": "MIT"
 }
