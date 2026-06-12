@@ -42,17 +42,20 @@ from a shared queue.
 
 ## Prerequisites
 
-1. **uv**: the only system requirement. Install once with:
+Run `/nebskill:setup` once on each new machine before doing anything else.
+It handles all of the following automatically:
+
+1. **uv**: the only manual install required.
    `curl -LsSf https://astral.sh/uv/install.sh | sh`
-   All Python dependencies install automatically on first `uv run`.
-   First run pulls ~1 GB (PyTorch + MACE-OFF); subsequent runs are instant.
-2. **Globus token**: must be valid before any LLM calls.
-   If expired, direct the user to run:
-   `uv run python agent/inference_auth_token.py auth`
-3. **Transition1x dataset**: auto-downloaded to `data/Transition1x.h5` (~6.2 GB)
-   if missing.
-4. **MACE-OFF model**: auto-downloaded and cached to `~/.cache/mace/` on first
-   use (~17.5 MB per model size).
+2. **Python dependencies**: installed by setup via `uv sync` (~1 GB first time).
+3. **Machine profile**: setup writes `assets/neb_local.yaml` with the correct
+   SLURM settings for this machine (RIKEN or collaborator). This file is
+   gitignored and stays local.
+4. **Globus token**: setup verifies and authenticates if needed. Cached at
+   `~/.globus/nebskill/tokens.json`; auto-refreshes thereafter.
+5. **Transition1x dataset**: auto-downloaded to `data/Transition1x.h5` (~6.2 GB)
+   on first calculation.
+6. **MACE-OFF model**: auto-downloaded to `~/.cache/mace/` on first calculation.
 
 ## Clarifying questions (always ask before running)
 

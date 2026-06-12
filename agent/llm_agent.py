@@ -22,9 +22,24 @@ EV_TO_KCAL = 23.0609
 # Config
 # --------------------------------------------------------------------------- #
 
+def _deep_merge(base: dict, override: dict) -> dict:
+    result = dict(base)
+    for key, val in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(val, dict):
+            result[key] = _deep_merge(result[key], val)
+        else:
+            result[key] = val
+    return result
+
+
 def load_config(path: str) -> dict:
     with open(path) as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f)
+    local = ROOT / "assets" / "neb_local.yaml"
+    if local.exists():
+        with open(local) as f:
+            cfg = _deep_merge(cfg, yaml.safe_load(f) or {})
+    return cfg
 
 
 # --------------------------------------------------------------------------- #

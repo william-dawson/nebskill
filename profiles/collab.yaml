@@ -1,0 +1,6 @@
+# Collaborator machine (NERSC/ALCF setup).
+# The defaults in assets/neb_defaults.yaml already match this machine;
+# only the account is machine-specific.
+# Do not edit directly — managed by /nebskill:setup.
+batch:
+  slurm_account: ""     # filled in by /nebskill:setup
