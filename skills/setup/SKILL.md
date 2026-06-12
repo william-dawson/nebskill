@@ -14,8 +14,9 @@ allowed-tools: Bash Read Write
 2. Install the nebskill package (and all Python dependencies) via `uv tool install`
 3. Verify the installation worked
 
-All dependencies including PyTorch and MACE-OFF are installed automatically.
-No cloning required — the package is fetched directly from GitHub.
+All Python dependencies are installed automatically from GitHub.
+Default parameters are bundled with the package — no config files needed.
+A `neb_local.yaml` in the working directory can override any default.
 
 ---
 

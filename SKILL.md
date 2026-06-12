@@ -78,7 +78,8 @@ Show the user what index will be used before proceeding.
 
 ## Step 2 — Review and confirm parameters
 
-Read `assets/neb_defaults.yaml` and `assets/neb_local.yaml` and display the
+Read the bundled defaults (`nebskill-load --help` shows all parameters) and
+any `neb_local.yaml` in the current directory, then display the
 active configuration:
 
 | Parameter | Value | Source |

@@ -12,7 +12,7 @@ and extracts reactant and product endpoint structures for NEB.
 ## Script
 
 ```bash
-nebskill-load --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-load --reaction-id INT
 ```
 
 Writes `outputs/reaction_{id:04d}/endpoints.json`.

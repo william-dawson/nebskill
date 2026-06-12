@@ -13,13 +13,13 @@ phases: standard NEB (phase 1) followed by Climbing Image NEB (phase 2).
 ## Script
 
 ```bash
-nebskill-neb --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-neb --reaction-id INT
 ```
 
 Override parameters for retry attempts:
 
 ```bash
-nebskill-neb --reaction-id INT --config assets/neb_defaults.yaml \
+nebskill-neb --reaction-id INT \
     [--n-images N] [--spring-constant K] [--method string]
 ```
 

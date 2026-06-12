@@ -14,7 +14,7 @@ cause poor NEB convergence if used directly.
 ## Script
 
 ```bash
-nebskill-relax --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-relax --reaction-id INT
 ```
 
 Reads `outputs/reaction_{id:04d}/endpoints.json`.
@@ -23,7 +23,7 @@ Writes `outputs/reaction_{id:04d}/relaxed_endpoints.json`.
 To re-relax with a tighter fmax (e.g. during a retry):
 
 ```bash
-nebskill-relax --reaction-id INT --config assets/neb_defaults.yaml --fmax 0.005
+nebskill-relax --reaction-id INT --fmax 0.005
 ```
 
 ## Relaxation protocol

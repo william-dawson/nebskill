@@ -72,15 +72,15 @@ already failed.
 ## 4.4 — Re-run NEB
 
 ```bash
-nebskill-neb --reaction-id INT --config assets/neb_defaults.yaml \
+nebskill-neb --reaction-id INT \
     [--n-images N] [--spring-constant K] [--method string]
 ```
 
 For endpoint re-relaxation:
 
 ```bash
-nebskill-relax --reaction-id INT --config assets/neb_defaults.yaml --fmax 0.005
-nebskill-neb   --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-relax --reaction-id INT --fmax 0.005
+nebskill-neb   --reaction-id INT
 ```
 
 ---

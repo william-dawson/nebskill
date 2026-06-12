@@ -14,7 +14,7 @@ Produces all output artifacts from a converged NEB and summarises the results.
 Run all three in sequence:
 
 ```bash
-nebskill-analyze --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-analyze --reaction-id INT
 nebskill-plot    --reaction-id INT
 nebskill-writer  --reaction-id INT
 ```
