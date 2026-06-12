@@ -7,3 +7,9 @@ batch:
   slurm_nodes: 1
   slurm_gpus_per_node: 1
   slurm_account: ""     # filled in by /nebskill:setup
+
+uv:
+  # PyTorch index for CUDA 13.2. Verify the exact URL at:
+  # https://download.pytorch.org/whl/
+  torch_index_name: pytorch-cu132
+  torch_index_url: "https://download.pytorch.org/whl/cu132"

@@ -1,4 +1,5 @@
 assets/neb_local.yaml
+uv.toml
 outputs/
 data/
 queue.json
