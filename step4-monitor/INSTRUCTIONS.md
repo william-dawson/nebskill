@@ -1,94 +1,127 @@
 # Step 4 — Monitor and Retry
 
-Diagnoses NEB convergence failures and uses the LLM agent to choose an
-intervention. Up to 3 retry attempts are made before issuing a structured
-failure report.
+Only enter this step if `neb_runner.py` exited non-zero (NEB did not converge).
+You drive the retry loop directly: diagnose, reason, intervene, re-run, repeat.
 
-## Scripts
+Maximum attempts is set by `retry.max_attempts` in `assets/neb_defaults.yaml`
+(default: 3). Keep a running count and stop when exhausted.
+
+---
+
+## 4.1 — Compute diagnostics
 
 ```bash
-uv run python step4-monitor/diagnostics.py --reaction-id INT   # compute diagnostic payload
-uv run python step4-monitor/retry.py --reaction-id INT --config assets/neb_defaults.yaml
+uv run python step4-monitor/diagnostics.py --reaction-id INT
 ```
 
-`retry.py` orchestrates the full retry loop: calls diagnostics, sends payload
-to LLM agent, applies the chosen intervention, re-runs step 3.
+Then read `outputs/reaction_{id:04d}/diagnostics.json` in full.
 
-## Diagnostic payload (diagnostics.py)
+---
 
-Computed from the last `neb_result.json`:
+## 4.2 — Reason about the failure
 
-| Metric | Description | Failure signal |
-|---|---|---|
-| `per_image_fmax` | max force per image (eV/Å) | high forces concentrated at specific images |
-| `inter_image_rmsd` | RMSD between consecutive images (Å) | < 0.05 Å = collapse; highly uneven = bunching |
-| `energy_smoothness` | second derivative of energy profile | large values = kinking or discontinuity |
-| `steps_taken` | steps used vs cap | near cap = almost converged vs stuck |
-| `phase` | which phase failed (1 or 2) | phase 2 failures need different fixes |
+Consider all metrics together before deciding. Key signals:
 
-Written to `outputs/reaction_{id:04d}/diagnostics.json`.
+**`failure_mode`** — the script's classification. Treat it as a hint, not a
+verdict. Your reading of the full metrics takes precedence.
 
-## Intervention selection
+**`energy_smoothness.max_abs_d2`** — second derivative of the energy profile.
+- < 0.3 eV: smooth, kinking is not the problem
+- 0.3–1.0 eV: mild roughness, worth considering
+- > 1.0 eV: strong kinking — the band is folding, not following the path
 
-Read `diagnostics.json` and select exactly one intervention:
+**`per_image_fmax`** — force on each image. Read the distribution:
+- Forces concentrated at endpoints (images 0 or N-1): endpoints are not at
+  true minima, the band is being pulled
+- Forces concentrated at one interior image: that image is stuck, possibly
+  kinking or collapse nearby
+- Forces roughly uniform and high: general non-convergence, possibly too few
+  images or wrong spring constant
 
+**`endpoint_force_ratio`** — ratio of endpoint to interior max force.
+- > 2.0: endpoints dominate — re-relax before retrying NEB
+- < 1.0: interior images are the problem
+
+**`phase`** — which phase failed:
+- Phase 1 (standard NEB): structural problems are common — kinking, collapse,
+  too few images
+- Phase 2 (CI-NEB): the climbing image is often sensitive; if `fmax_final`
+  is already below 0.15 eV/Å, the NEB is nearly there — consider whether
+  increasing `phase2_max_steps` is enough rather than changing the geometry
+
+**`steps_taken`** — if close to the step cap and fmax is nearly at target,
+the issue may simply be too few steps rather than a structural problem.
+
+---
+
+## 4.3 — Choose one intervention
+
+Pick the single most likely fix. State your reasoning explicitly before running.
+Do not repeat an intervention that already failed in a previous attempt.
+
+| Intervention | How to apply |
+|---|---|
+| More images | `--n-images N` on neb_runner.py |
+| Different spring constant | `--spring-constant K` on neb_runner.py |
+| Switch to string method | `--method string` on neb_runner.py |
+| Re-relax endpoints tighter | re-run step 2 with `--fmax 0.005`, then step 3 from scratch |
+
+---
+
+## 4.4 — Re-run NEB
+
+Pass your chosen flags directly to neb_runner.py:
+
+```bash
+uv run python step3-neb/neb_runner.py \
+    --reaction-id INT --config assets/neb_defaults.yaml \
+    [--n-images N] [--spring-constant K] [--method string]
 ```
-set_n_images(n: int)
-  → use when inter_image_rmsd shows bunching or images are too far apart
 
-adjust_spring_constant(k: float)
-  → use when inter_image_rmsd shows collapse (increase k) or over-tension
+If endpoint re-relaxation was chosen, run step 2 first with a tighter fmax,
+then run step 3 without any extra flags (fresh start from new endpoints):
 
-switch_method(method: "string")
-  → use when energy_smoothness shows kinking or energy discontinuities
-
-tighten_endpoint_relaxation(fmax: float)
-  → use when per_image_fmax is high at endpoint images (0 or n-1),
-    suggesting endpoints are not true minima; re-runs step 2 with tighter fmax
+```bash
+uv run python step2-relax/relax_endpoints.py \
+    --reaction-id INT --config assets/neb_defaults.yaml --fmax 0.005
+uv run python step3-neb/neb_runner.py \
+    --reaction-id INT --config assets/neb_defaults.yaml
 ```
 
-The chosen intervention and reasoning are logged to
-`outputs/reaction_{id:04d}/retry_log.json`.
+---
 
-## Retry loop (retry.py)
+## 4.5 — Check and loop
 
-```
-attempt = 0
-while attempt < max_attempts:
-    run step 3 (neb_runner.py)
-    if converged: break
-    compute diagnostics
-    send to LLM agent → get intervention
-    apply intervention to config
-    attempt += 1
+Read `outputs/reaction_{id:04d}/neb_result.json`.
 
-if not converged after max_attempts:
-    write failure report (see below)
-    mark queue.json as failed
-```
+- `converged: true` → proceed to step 5
+- Not converged, attempts remaining → go back to 4.1
+- Attempts exhausted → write failure report (below) and stop
 
-## Structured failure report
+---
 
-Written to `outputs/reaction_{id:04d}/failure_report.json`:
+## Failure report
+
+If all attempts are exhausted, write
+`outputs/reaction_{id:04d}/failure_report.json`:
 
 ```json
 {
-  "reaction_id": 42,
-  "attempts": 3,
-  "final_fmax": 0.38,
-  "final_phase": 2,
+  "reaction_id": INT,
+  "status": "failed",
+  "reason": "retry_exhausted",
+  "n_attempts": INT,
+  "final_fmax": FLOAT,
+  "final_phase": INT,
   "interventions": [
-    {"attempt": 1, "tool": "switch_method",    "value": "string",  "reasoning": "..."},
-    {"attempt": 2, "tool": "set_n_images",     "value": 13,        "reasoning": "..."},
-    {"attempt": 3, "tool": "adjust_spring_constant", "value": 0.2, "reasoning": "..."}
+    {"attempt": 1, "intervention": "switch_method", "value": "string",
+     "reasoning": "...", "fmax_after": 0.38},
+    {"attempt": 2, "intervention": "set_n_images",  "value": 13,
+     "reasoning": "...", "fmax_after": 0.21}
   ],
-  "last_diagnostics": { "..." },
-  "last_neb_result":  { "..." }
+  "last_diagnostics": { }
 }
 ```
 
-## Notes
-
-- Endpoint relaxation failures (step 2) are NOT counted as retry attempts
-- Each retry starts from the last converged NEB geometry, not from scratch,
-  unless `tighten_endpoint_relaxation` is selected (which re-runs from step 2)
+Then report the failure to the user with your assessment of why this reaction
+did not converge and whether it is worth trying different parameters manually.

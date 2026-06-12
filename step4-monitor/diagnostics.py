@@ -1,4 +1,4 @@
-"""CLI wrapper — compute NEB diagnostics from neb_result.json."""
+"""Compute NEB diagnostics from neb_result.json and write diagnostics.json."""
 import argparse
 import json
 import sys
@@ -21,19 +21,23 @@ def main():
 
     neb_result_path = out_dir / "neb_result.json"
     if not neb_result_path.exists():
-        raise FileNotFoundError(f"{neb_result_path} not found")
+        print(f"ERROR: {neb_result_path} not found", file=sys.stderr)
+        sys.exit(1)
 
     neb_result = json.loads(neb_result_path.read_text())
-    payload = diagnose(neb_result)
+    payload    = diagnose(neb_result)
 
     out_path = out_dir / "diagnostics.json"
     out_path.write_text(json.dumps(payload, indent=2))
 
-    print(f"Failure mode: {payload['failure_mode']}")
-    print(f"  fmax={payload['fmax_final']:.4f} (target {payload['fmax_target']}), "
-          f"steps={payload['steps_taken']}/{payload['max_steps']}")
-    print(f"  Energy kink score: {payload['energy_smoothness']['max_abs_d2']:.4f} eV")
-    print(f"  Image spacing CV:  {payload['image_spacing']['cv']:.3f}")
+    print(f"Failure mode:          {payload['failure_mode']}")
+    print(f"  Phase:               {payload['phase']}")
+    print(f"  fmax:                {payload['fmax_final']:.4f} eV/Å")
+    print(f"  Steps taken:         {payload['steps_taken']}")
+    print(f"  Energy kink score:   {payload['energy_smoothness']['max_abs_d2']:.4f} eV")
+    print(f"  Endpoint force ratio:{payload['endpoint_force_ratio']:.3f}")
+    print(f"  Spring constant:     {payload['spring_constant']} eV/Å")
+    print(f"  n_images:            {payload['n_images']}")
     print(f"Diagnostics written to {out_path}")
 
 
