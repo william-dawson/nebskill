@@ -124,8 +124,12 @@ def main():
 
     if not h5_path.exists():
         print(f"Dataset not found at {h5_path}, downloading...")
-        from step1_load.download import download
-        download(h5_path)
+        import importlib.util
+        _spec = importlib.util.spec_from_file_location(
+            "download", Path(__file__).parent / "download.py")
+        _mod = importlib.util.module_from_spec(_spec)
+        _spec.loader.exec_module(_mod)
+        _mod.download(h5_path)
 
     print(f"Building reaction index for split='{args.split}'...")
     index = build_reaction_index(h5_path, split=args.split)
