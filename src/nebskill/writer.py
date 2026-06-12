@@ -4,19 +4,15 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-
 
 def main():
     parser = argparse.ArgumentParser(description="Write NEB convergence log")
     parser.add_argument("--reaction-id", type=int, required=True)
-    parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--output-dir",  default=None)
     args = parser.parse_args()
 
-    out_dir = Path(args.output_dir) if args.output_dir else \
-              Path(f"outputs/reaction_{args.reaction_id:04d}")
-
+    out_dir    = Path(args.output_dir) if args.output_dir else \
+                 Path(f"outputs/reaction_{args.reaction_id:04d}")
     neb_result = json.loads((out_dir / "neb_result.json").read_text())
 
     lines = ["phase\tsteps\tfmax_target\tfmax_final\tconverged\twall_time_s"]
@@ -38,7 +34,6 @@ def main():
     out_path.write_text("\n".join(lines) + "\n")
     print(f"Convergence log written to {out_path}")
 
-    # confirm trajectory exists
     traj_path = out_dir / "neb_trajectory.xyz"
     if traj_path.exists():
         n_frames = traj_path.read_text().count("Properties=")

@@ -11,7 +11,7 @@ Maximum attempts is set by `retry.max_attempts` in `assets/neb_defaults.yaml`
 ## 4.1 — Compute diagnostics
 
 ```bash
-uv run python step4-monitor/diagnostics.py --reaction-id INT
+nebskill-diagnose --reaction-id INT
 ```
 
 Then read `outputs/reaction_{id:04d}/diagnostics.json` in full.
@@ -61,20 +61,19 @@ Do not repeat an intervention that already failed in a previous attempt.
 
 | Intervention | How to apply |
 |---|---|
-| More images | `--n-images N` on neb_runner.py |
-| Different spring constant | `--spring-constant K` on neb_runner.py |
-| Switch to string method | `--method string` on neb_runner.py |
+| More images | `--n-images N` on nebskill-neb |
+| Different spring constant | `--spring-constant K` on nebskill-neb |
+| Switch to string method | `--method string` on nebskill-neb |
 | Re-relax endpoints tighter | re-run step 2 with `--fmax 0.005`, then step 3 from scratch |
 
 ---
 
 ## 4.4 — Re-run NEB
 
-Pass your chosen flags directly to neb_runner.py:
+Pass your chosen flags directly to nebskill-neb:
 
 ```bash
-uv run python step3-neb/neb_runner.py \
-    --reaction-id INT --config assets/neb_defaults.yaml \
+nebskill-neb --reaction-id INT --config assets/neb_defaults.yaml \
     [--n-images N] [--spring-constant K] [--method string]
 ```
 
@@ -82,10 +81,8 @@ If endpoint re-relaxation was chosen, run step 2 first with a tighter fmax,
 then run step 3 without any extra flags (fresh start from new endpoints):
 
 ```bash
-uv run python step2-relax/relax_endpoints.py \
-    --reaction-id INT --config assets/neb_defaults.yaml --fmax 0.005
-uv run python step3-neb/neb_runner.py \
-    --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-relax --reaction-id INT --config assets/neb_defaults.yaml --fmax 0.005
+nebskill-neb   --reaction-id INT --config assets/neb_defaults.yaml
 ```
 
 ---

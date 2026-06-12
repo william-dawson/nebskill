@@ -6,9 +6,9 @@ the LLM agent's final interpretation for the user.
 ## Scripts
 
 ```bash
-uv run python step5-analyze/analyze.py  --reaction-id INT --config assets/neb_defaults.yaml
-uv run python step5-analyze/plot.py     --reaction-id INT
-uv run python step5-analyze/writer.py   --reaction-id INT
+nebskill-analyze  --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-plot     --reaction-id INT
+nebskill-writer   --reaction-id INT
 ```
 
 All three are called in sequence after convergence.

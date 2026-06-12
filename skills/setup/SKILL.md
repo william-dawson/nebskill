@@ -2,18 +2,20 @@
 name: setup
 description: >
   First-time setup for nebskill on a new machine. Detects the machine,
-  writes uv.toml with the correct PyTorch CUDA index, and installs all
-  Python dependencies via uv. Run this once before using the nebskill skill.
+  installs the nebskill Python package via uv tool install (with the correct
+  PyTorch CUDA variant), and verifies the installation. Run this once before
+  using the nebskill skill.
 allowed-tools: Bash Read Write
 ---
 
 ## What this skill does
 
 1. Detect which machine we're on
-2. Write `uv.toml` with the correct PyTorch CUDA variant for this machine
-3. Install Python dependencies with `uv sync`
+2. Install the nebskill package (and all Python dependencies) via `uv tool install`
+3. Verify the installation worked
 
-`uv.toml` is gitignored — it stays local to this machine.
+All dependencies including PyTorch and MACE-OFF are installed automatically.
+No cloning required — the package is fetched directly from GitHub.
 
 ---
 
@@ -29,52 +31,49 @@ hostname
   - collaborator → use `profiles/collab.yaml`
   - neither → list `profiles/` and ask which to use
 
+Read the chosen profile to get the `uv.torch_index_url` value.
+
 ---
 
-## Step 2 — Write uv.toml
+## Step 2 — Install
 
-Read the `uv` section of the chosen profile.
+**If `torch_index_url` is non-empty** (e.g. RIKEN with CUDA 13.2):
 
-**If `torch_index_url` is non-empty** (e.g. RIKEN):
-
-Before writing, verify the URL exists:
+Before installing, verify the index URL is reachable:
 ```bash
 curl -sI <torch_index_url> | head -1
 ```
 If it does not return `200` or `301`, warn the user the URL may be wrong and
 ask them to verify at https://download.pytorch.org/whl/ before continuing.
 
-Write `uv.toml` at the project root:
-```toml
-[sources]
-torch = { index = "<torch_index_name>" }
-
-[[indexes]]
-name = "<torch_index_name>"
-url = "<torch_index_url>"
-priority = "explicit"
-```
-
-**If `torch_index_url` is empty** (collaborator machine): skip — uv will
-pick the appropriate wheel from PyPI automatically.
-
----
-
-## Step 3 — Install dependencies
-
-Run:
+Then install with the CUDA index:
 ```bash
-uv sync
+uv tool install git+https://github.com/william-dawson/nebskill.git \
+    --index <torch_index_url>
 ```
 
-This downloads PyTorch, MACE-OFF, and other dependencies (~1–2 GB first time).
-Show the output so the user can see progress.
+**If `torch_index_url` is empty** (collaborator machine):
+```bash
+uv tool install git+https://github.com/william-dawson/nebskill.git
+```
 
-If `uv sync` fails, check whether the torch index URL in `uv.toml` is correct.
+This will take several minutes on first run (~1–2 GB download for PyTorch +
+MACE-OFF). Show the output so the user can see progress.
 
 ---
 
-## Done
+## Step 3 — Verify
 
-Report: machine detected, profile used, whether `uv.toml` was written and
-with which CUDA index, whether `uv sync` succeeded.
+```bash
+nebskill-load --help
+```
+
+If the command is found, installation succeeded. Report what was installed and
+remind the user they can now run NEB calculations.
+
+If the command is not found, uv may not have added its bin directory to PATH.
+Suggest:
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+And ask the user to add this to their shell profile.

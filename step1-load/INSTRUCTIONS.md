@@ -7,7 +7,7 @@ structures for NEB.
 ## Script
 
 ```bash
-uv run python step1-load/load_dataset.py --reaction-id INT --config assets/neb_defaults.yaml
+nebskill-load --reaction-id INT --config assets/neb_defaults.yaml
 ```
 
 Output: writes `outputs/reaction_{id:04d}/endpoints.json` with:
@@ -24,7 +24,7 @@ Output: writes `outputs/reaction_{id:04d}/endpoints.json` with:
 If `data/Transition1x.h5` is missing, `download.py` is called automatically:
 
 ```bash
-uv run python step1-load/download.py
+nebskill-download
 ```
 
 Downloads from `https://ndownloader.figshare.com/files/36035789` (~6.2 GB)

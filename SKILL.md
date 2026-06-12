@@ -41,14 +41,13 @@ Before doing anything else, verify the environment is ready.
 
 ### Is setup complete?
 
-Check whether `assets/neb_local.yaml` exists:
+Check whether the nebskill commands are installed:
 ```bash
-ls assets/neb_local.yaml
+nebskill-load --help
 ```
 
-If it does not exist, the machine has not been configured. Tell the user:
-> "This machine hasn't been set up yet. Run `/nebskill:setup` first, then
-> come back here."
+If the command is not found, the package has not been installed. Tell the user:
+> "The nebskill package isn't installed yet. Run `/nebskill:setup` first."
 Stop and do not proceed until setup is complete.
 
 ### Is the dataset present?
@@ -60,21 +59,9 @@ ls -lh data/Transition1x.h5
 
 If missing, offer to download it now (~6.2 GB, resumes if interrupted):
 ```bash
-uv run python step1-load/download.py
+nebskill-download
 ```
 Warn the user this will take a while on first run and show progress.
-
-### Is the Python environment ready?
-
-Check that the venv exists:
-```bash
-ls .venv/
-```
-
-If missing, run:
-```bash
-uv sync
-```
 
 ---
 
