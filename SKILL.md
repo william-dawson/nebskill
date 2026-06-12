@@ -28,10 +28,8 @@ and product configurations using the Nudged Elastic Band method. Reaction
 endpoints come from the Transition1x dataset (~20k organic reactions with DFT
 reference data). MACE-OFF23 handles force evaluations.
 
-References for background reading:
-- `${CLAUDE_PLUGIN_ROOT}/references/neb_method.md`
-- `${CLAUDE_PLUGIN_ROOT}/references/mace_off_usage.md`
-- `${CLAUDE_PLUGIN_ROOT}/references/transition1x_schema.md`
+Background reading available in `${CLAUDE_PLUGIN_ROOT}/references/`:
+`neb_method.md`, `mace_off_usage.md`, `transition1x_schema.md`
 
 ---
 
@@ -106,20 +104,20 @@ as a CLI flag to the relevant script. Do not modify the yaml files.
 Execute each step in order. Read the step's INSTRUCTIONS.md before running it,
 then report a brief summary of what happened before moving to the next.
 
-1. **Load reaction** — read `${CLAUDE_PLUGIN_ROOT}/step1-load/INSTRUCTIONS.md`
+1. **Load reaction** — invoke `/nebskill:load`
    - Report: formula, number of atoms, DFT barrier from Transition1x
 
-2. **Relax endpoints** — read `${CLAUDE_PLUGIN_ROOT}/step2-relax/INSTRUCTIONS.md`
+2. **Relax endpoints** — invoke `/nebskill:relax`
    - Report: converged fmax for reactant and product, optimizer used
 
-3. **Run NEB** — read `${CLAUDE_PLUGIN_ROOT}/step3-neb/INSTRUCTIONS.md`
+3. **Run NEB** — invoke `/nebskill:neb`
    - Report: whether phase 1 and phase 2 converged, final fmax, steps taken
 
-4. **Monitor & retry if needed** — read `${CLAUDE_PLUGIN_ROOT}/step4-monitor/INSTRUCTIONS.md`
-   - Only if step 3 did not converge
+4. **Monitor & retry if needed** — invoke `/nebskill:monitor`
+   - Only if step 3 exited with code 4
    - Report: diagnosed failure mode, intervention chosen, outcome
 
-5. **Analyze & report** — read `${CLAUDE_PLUGIN_ROOT}/step5-analyze/INSTRUCTIONS.md`
+5. **Analyze & report** — invoke `/nebskill:analyze`
    - Report: forward and reverse barriers in eV and kcal/mol, MACE-OFF vs DFT
      error, location of the transition state image
 
