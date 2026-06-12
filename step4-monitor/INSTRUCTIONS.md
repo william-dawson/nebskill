@@ -91,6 +91,5 @@ Written to `outputs/reaction_{id:04d}/failure_report.json`:
 ## Notes
 
 - Endpoint relaxation failures (step 2) are NOT counted as retry attempts
-- The LLM agent is called via `agent/llm_agent.py` — Globus token must be valid
 - Each retry starts from the last converged NEB geometry, not from scratch,
   unless `tighten_endpoint_relaxation` is selected (which re-runs from step 2)

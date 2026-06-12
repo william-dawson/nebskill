@@ -12,7 +12,7 @@ description: >
 license: MIT
 compatibility: >
   Requires uv (https://docs.astral.sh/uv/getting-started/installation/).
-  All Python dependencies (ASE, MACE-OFF, h5py, openai, globus-sdk, etc.)
+  All Python dependencies (ASE, MACE-OFF, h5py, etc.)
   are installed automatically on first run via uv. GPU recommended for
   MACE-OFF but CPU is supported via auto-detection. Internet access
   required for model and dataset auto-download. SLURM required for
@@ -23,8 +23,6 @@ metadata:
   version: "0.1.0"
   dataset: transition1x
   potential: mace-off
-  llm-endpoint: alcf-sophia
-  llm-model: Qwen/Qwen3-32B
 allowed-tools: Bash Read Write
 ---
 
@@ -51,11 +49,9 @@ It handles all of the following automatically:
 3. **Machine profile**: setup writes `assets/neb_local.yaml` with the correct
    SLURM settings for this machine (RIKEN or collaborator). This file is
    gitignored and stays local.
-4. **Globus token**: setup verifies and authenticates if needed. Cached at
-   `~/.globus/nebskill/tokens.json`; auto-refreshes thereafter.
-5. **Transition1x dataset**: auto-downloaded to `data/Transition1x.h5` (~6.2 GB)
+4. **Transition1x dataset**: auto-downloaded to `data/Transition1x.h5` (~6.2 GB)
    on first calculation.
-6. **MACE-OFF model**: auto-downloaded to `~/.cache/mace/` on first calculation.
+5. **MACE-OFF model**: auto-downloaded to `~/.cache/mace/` on first calculation.
 
 ## Clarifying questions (always ask before running)
 
@@ -111,7 +107,6 @@ Batch aggregation writes `outputs/summary.json` and `outputs/summary.png`.
 - [NEB method](references/neb_method.md)
 - [MACE-OFF usage](references/mace_off_usage.md)
 - [Transition1x schema](references/transition1x_schema.md)
-- [ALCF API](references/alcf_api.md)
 
 ## Default parameters
 

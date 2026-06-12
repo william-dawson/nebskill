@@ -15,7 +15,6 @@ Walks through one-time setup in order:
 1. Detect which machine we're on
 2. Write `assets/neb_local.yaml` with the right profile
 3. Install Python dependencies with `uv sync`
-4. Verify the ALCF Globus token
 
 ---
 
@@ -60,29 +59,9 @@ PyTorch and MACE-OFF (~1 GB total). Show the output so they can see progress.
 
 ---
 
-## Step 4 — Verify Globus token
-
-Run:
-```bash
-uv run python agent/auth.py check
-```
-
-- If the output contains `Token OK` → done.
-- If it fails → explain that the ALCF inference endpoint requires a Globus token,
-  then run:
-  ```bash
-  uv run python agent/auth.py login
-  ```
-  This prints a URL. Ask the user to open it in a browser, complete the Globus
-  OAuth flow, and paste the auth code back. The token is cached at
-  `~/.globus/nebskill/tokens.json` and auto-refreshes — this step only needs
-  to be done once per machine.
-
----
-
 ## Done
 
-Summarise what was configured (machine, profile used, uv sync outcome, token
-status). Remind the user they can now run NEB calculations — the main skill
-activates automatically when they ask about reaction barriers, transition states,
-or NEB, or they can invoke it directly.
+Summarise what was configured (machine, profile used, uv sync outcome). Remind
+the user they can now run NEB calculations — the main skill activates
+automatically when they ask about reaction barriers, transition states, or NEB,
+or they can invoke it directly.

@@ -11,7 +11,7 @@ uv run python step5-analyze/plot.py     --reaction-id INT
 uv run python step5-analyze/writer.py   --reaction-id INT
 ```
 
-All three are called in sequence by `agent/llm_agent.py` after convergence.
+All three are called in sequence after convergence.
 
 ## analyze.py — compute results
 

@@ -47,7 +47,3 @@ batch:
   slurm_nodes: 1
   slurm_gpus_per_node: 1
   slurm_account: m5047           # NERSC project account
-
-alcf:
-  base_url: https://inference-api.alcf.anl.gov/resource_server/sophia/vllm/v1
-  model: meta-llama/Meta-Llama-3.1-70B-Instruct

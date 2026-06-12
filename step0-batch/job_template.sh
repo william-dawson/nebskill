@@ -24,10 +24,7 @@ cd "${NEB_ROOT}"
 echo "  Python:      $(uv run python --version)"
 
 # ── run ────────────────────────────────────────────────────────────────────
-uv run python agent/llm_agent.py \
-    --reaction-id "${REACTION_ID}" \
-    --config "${CONFIG}" \
-    --defaults
+bash run_pipeline.sh
 
 EXIT_CODE=$?
 echo "=== NEB job end: $(date)  exit_code=${EXIT_CODE} ==="

@@ -55,7 +55,7 @@ Reads all `outputs/reaction_*/report.json` files and produces:
 
 Each submitted job runs:
 ```bash
-uv run python agent/llm_agent.py --reaction-id $REACTION_ID --config assets/neb_defaults.yaml
+bash run_pipeline.sh
 ```
 
 SLURM settings come from `assets/neb_defaults.yaml` (batch section).
