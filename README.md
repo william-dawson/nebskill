@@ -5,16 +5,13 @@ organic molecules using MACE-OFF23 and the Transition1x dataset.
 
 ## Install
 
-```bash
-# Install the Claude Code plugin
-claude plugin install william-dawson/nebskill
-
-# First-time machine setup (installs Python package + configures for your machine)
-/nebskill:setup
+```
+/plugin marketplace add william-dawson/nebskill
+/plugin install nebskill@nebskill
+/reload-plugins
 ```
 
-`/nebskill:setup` installs the Python package directly from GitHub via uv —
-no cloning required.
+Then run `/nebskill:setup` to configure your machine and install the Python package.
 
 ## Usage
 
@@ -24,5 +21,5 @@ The skill activates automatically, or invoke it directly.
 ## Requirements
 
 - [Claude Code](https://claude.ai/code)
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - GPU recommended (CPU supported but slow for MACE-OFF)

@@ -1,0 +1,23 @@
+{
+  "name": "nebskill",
+  "owner": {
+    "name": "william-dawson"
+  },
+  "metadata": {
+    "description": "NEB calculations for reaction barriers on organic molecules using MACE-OFF23 and the Transition1x dataset."
+  },
+  "plugins": [
+    {
+      "name": "nebskill",
+      "source": "./",
+      "version": "0.1.0",
+      "description": "Nudged Elastic Band calculations for reaction barriers on organic molecules using MACE-OFF23 and the Transition1x dataset. Requires uv; Python dependencies installed automatically.",
+      "author": {
+        "name": "william-dawson"
+      },
+      "homepage": "https://github.com/william-dawson/nebskill",
+      "repository": "https://github.com/william-dawson/nebskill",
+      "keywords": ["computational-chemistry", "NEB", "MACE", "reaction-barriers", "molecular-simulation", "ASE"]
+    }
+  ]
+}
