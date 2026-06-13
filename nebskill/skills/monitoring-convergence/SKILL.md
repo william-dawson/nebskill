@@ -23,6 +23,19 @@ nebskill-diagnose --reaction-id INT
 
 Read `outputs/reaction_{id:04d}/diagnostics.json` in full.
 
+Also read `outputs/reaction_{id:04d}/neb_progress.jsonl` — one line per optimizer
+step (`step`, `fmax`, `barrier_est_ev`, `ts_image`, `elapsed_s`). The per-step
+trace tells you *how* it failed, which the final snapshot can't:
+- **fmax plateau** — fmax flat over many steps, well above target → the band is
+  stuck; reach for a smaller step or the ODE optimizer, not a geometry change.
+- **fmax oscillation** — fmax bouncing up and down → step too large; lower it.
+- **wandering `ts_image`** — the peak image index keeps jumping → the band hasn't
+  localized the saddle; more images or the ODE optimizer.
+- **`barrier_est_ev` still falling at the cap** → it was converging, just needs
+  more steps.
+On a timed-out run this file is your only record of where it stalled — read it
+first.
+
 ---
 
 ## 4.2 — Reason about the failure
@@ -65,18 +78,24 @@ already failed.
 | Intervention | CLI flag | When |
 |---|---|---|
 | More images | `--n-images N` | bunching/collapse, or images too far apart |
-| Different spring constant | `--spring-constant K` | raise for collapse (images too close), lower if springs dominate |
+| **Increase** spring constant | `--spring-constant 0.2` | images collapsing/bunching toward each other (low/uneven inter-image spacing); stiffer springs keep them evenly spread |
+| **Decrease** spring constant | `--spring-constant 0.05` | springs dominate and over-tension the band — a curved MEP gets pulled straight, or spring forces swamp the true forces; softer springs let images follow the valley |
 | Switch to string method | `--method string` | kinking / energy discontinuities (high `max_abs_d2`) |
 | Re-relax endpoints tighter | `nebskill-relax --fmax 0.005` then re-run | high force at endpoint images (`endpoint_force_ratio` > 2) |
+
+The spring constant is a two-way lever: **raise** it to fix collapse/bunching,
+**lower** it when the springs are fighting the real forces. Read the inter-image
+spacing and `per_image_fmax` to decide the direction.
 
 **Dynamical levers** (change how the optimizer moves) — reach for these when
 the band is not mis-set-up but won't settle:
 
 | Intervention | CLI flag | When |
 |---|---|---|
-| Smaller step size | `--max-step 0.05` | forces oscillate / don't decrease; band rings without converging |
-| Switch optimizer | `--optimizer BFGS` | FIRE stalling; BFGS with a small `--max-step` (e.g. 0.03) is what the dataset paper used |
-| More iterations | `--max-steps N` | `near_convergence` — already close to target and hit the step cap; just needs a larger budget, not a geometry change |
+| Smaller step size | `--max-step 0.05` | fmax oscillates / doesn't decrease; band rings without converging |
+| Switch optimizer to BFGS | `--optimizer BFGS` | FIRE stalling; pair with a small `--max-step` (e.g. 0.03), the dataset paper's setup |
+| Switch optimizer to ODE | `--optimizer ODE` | persistent kinking or a wandering `ts_image` that FIRE/BFGS can't settle — ASE's NEB-specialized solver, best shot at localizing a tricky saddle |
+| More iterations | `--max-steps N` | `near_convergence` / `barrier_est_ev` still falling at the cap — needs budget, not a geometry change |
 
 Prefer a dynamical lever over a structural one when `steps_taken` is at the cap
 and `fmax_final` is already low (especially phase 2) — changing the geometry
@@ -89,7 +108,7 @@ there throws away progress.
 ```bash
 nebskill-neb --reaction-id INT \
     [--n-images N] [--spring-constant K] [--method string] \
-    [--optimizer BFGS] [--max-step 0.05] [--max-steps N]
+    [--optimizer BFGS|ODE] [--max-step 0.05] [--max-steps N]
 ```
 
 For endpoint re-relaxation:

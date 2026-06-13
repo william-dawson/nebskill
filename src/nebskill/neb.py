@@ -60,15 +60,25 @@ def write_trajectory(images: list, traj_path: Path, append: bool = False) -> Non
 
 
 def make_optimizer(neb, optimizer: str, max_step):
-    """Build the band optimizer. `optimizer` is FIRE or BFGS; `max_step` is the
-    maximum displacement per step in Å (None = the optimizer's ASE default).
-    Smaller max_step stabilizes an oscillating band. BFGS uses ASE's default
-    alpha=70 (the Transition1x paper's value)."""
+    """Build the band optimizer.
+
+    - FIRE / BFGS: general ASE optimizers; `max_step` caps the displacement per
+      step in Å (None = ASE default). Smaller stabilizes an oscillating band.
+      BFGS uses ASE's default alpha=70 (the Transition1x paper's value).
+    - ODE: ASE's NEBOptimizer adaptive ODE solver, purpose-built for NEB bands.
+      Often converges tricky/kinking bands that FIRE and BFGS stall on, and is
+      a good choice for nailing the transition state. Manages its own step
+      size, so `max_step` does not apply.
+    """
+    name = str(optimizer).upper()
+    if name == "ODE":
+        from ase.mep import NEBOptimizer
+        return NEBOptimizer(neb, logfile=None)   # method='ODE' by default
     from ase.optimize import BFGS, FIRE
     kwargs = {"logfile": None}
     if max_step is not None:
         kwargs["maxstep"] = float(max_step)
-    if str(optimizer).upper() == "BFGS":
+    if name == "BFGS":
         return BFGS(neb, **kwargs)
     return FIRE(neb, **kwargs)
 
@@ -87,12 +97,24 @@ def run_phase(neb: NEB, images: list, fmax: float, max_steps: int,
     progress_fh = open(progress_path, "a" if append_traj else "w", buffering=1)
 
     def _log_progress():
+        # All quantities below are read from the NEB's cached state from the
+        # last force evaluation (get_residual / neb.energies) — no recompute,
+        # so this adds zero force/DFT calls.
         try:
             residual = float(neb.get_residual())
         except Exception:
             residual = None
+        barrier_est = ts_image = None
+        try:
+            e = np.asarray(neb.energies, dtype=float)
+            if e.size:
+                barrier_est = float(e.max() - e[0])   # forward barrier estimate
+                ts_image    = int(e.argmax())          # which image is the peak
+        except Exception:
+            pass
         rec = {"phase": phase, "step": opt.nsteps,
                "fmax": residual, "fmax_target": fmax,
+               "barrier_est_ev": barrier_est, "ts_image": ts_image,
                "elapsed_s": round(time.monotonic() - t0, 1)}
         progress_fh.write(json.dumps(rec) + "\n")
         progress_fh.flush()
@@ -154,8 +176,9 @@ def main():
     parser.add_argument("--n-images",        type=int,   default=None)
     parser.add_argument("--method",          default=None)
     parser.add_argument("--spring-constant", type=float, default=None)
-    parser.add_argument("--optimizer", choices=["FIRE", "BFGS"], default=None,
-                        help="Band optimizer (default from config)")
+    parser.add_argument("--optimizer", choices=["FIRE", "BFGS", "ODE"], default=None,
+                        help="Band optimizer: FIRE, BFGS, or ODE "
+                             "(NEB-specialized, for tricky bands; default from config)")
     parser.add_argument("--max-step", type=float, default=None,
                         help="Max optimizer displacement per step, Å "
                              "(lower stabilizes an oscillating band)")

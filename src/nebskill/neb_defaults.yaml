@@ -32,7 +32,9 @@ neb:
   interpolation: idpp         # idpp | linear
   spring_constant: 0.1        # eV/Å — paper value
   remove_rotation_translation: true
-  optimizer: FIRE             # FIRE | BFGS — band optimizer (paper used BFGS)
+  optimizer: FIRE             # FIRE | BFGS | ODE — band optimizer. ODE is ASE's
+                              # NEB-specialized solver, best for tricky bands;
+                              # paper used BFGS
   max_step: null              # Å per step; null = optimizer default. Lower
                               # (e.g. 0.05) stabilizes an oscillating band
   phase1_fmax: 0.5            # eV/Å — paper's plain-NEB target
