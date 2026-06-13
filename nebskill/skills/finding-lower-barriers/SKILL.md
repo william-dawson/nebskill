@@ -90,8 +90,10 @@ A real flaw requires **ALL** of the following — anything less is a null result
 - [ ] **Same reaction** — the new path connects the *same* relaxed reactant and
       product, not a different pair. Verify the endpoints match.
 - [ ] **Genuine first-order saddle** — the new TS is a true saddle (one imaginary
-      vibrational mode), not a shoulder or higher-order point. (A MACE Hessian is
-      a cheap pre-check; DFT confirms.)
+      vibrational mode), not a shoulder or higher-order point. Verify with
+      `/nebskill:verifying-transition-state` (`nebskill-frequencies`): MACE for a
+      cheap pre-check, then PySCF to confirm. A `minimum` or `higher_order_saddle`
+      verdict disqualifies the result.
 - [ ] **Smooth path** — the converged energy profile is continuous, no kinks.
 
 If the DFT-confirmed barrier matches the dataset within noise → **reproduced, no

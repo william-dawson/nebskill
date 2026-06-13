@@ -47,13 +47,16 @@ The skills run in pipeline order:
   retry with adjusted levers (images, spring constant, optimizer, step size).
 - **`/nebskill:analyzing-results`** — compute barriers, plot the energy profile,
   and compare against the dataset's DFT reference.
+- **`/nebskill:verifying-transition-state`** — vibrational analysis to confirm a
+  transition state is a genuine first-order saddle (one imaginary mode).
 
 ## In progress
 
 - **`/nebskill:finding-lower-barriers`** — a research skill to hunt for
   reactions whose published transition state may not be the lowest, by triaging
   candidates cheaply with MACE and confirming lower saddles at the dataset's DFT
-  level. Still being developed (needs saddle-point / frequency verification).
+  level. The building blocks are in place (MACE→DFT warm start, saddle
+  verification); still being shaped through real use.
 
 ## Requirements
 
