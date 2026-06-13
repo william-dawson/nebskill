@@ -117,7 +117,26 @@ def main():
     parser.add_argument("--n-images",        type=int,   default=None)
     parser.add_argument("--method",          default=None)
     parser.add_argument("--spring-constant", type=float, default=None)
+    parser.add_argument("--local", action="store_true",
+                        help="Force local execution, skipping RemoteManager dispatch")
     args = parser.parse_args()
+
+    out_dir = Path(args.output_dir) if args.output_dir else \
+              Path(f"outputs/reaction_{args.reaction_id:04d}")
+
+    # Dispatch to the remote node if configured (and not already a worker).
+    from nebskill.dispatch import remote_config, submit
+    if not args.local:
+        remote = remote_config()
+        if remote is not None:
+            extra = []
+            if args.n_images:        extra += ["--n-images", str(args.n_images)]
+            if args.method:          extra += ["--method", args.method]
+            if args.spring_constant: extra += ["--spring-constant", str(args.spring_constant)]
+            sys.exit(submit(remote, "nebskill.neb", args.reaction_id, out_dir,
+                            send=["relaxed_endpoints.json", "endpoints.json"],
+                            recv=["neb_result.json", "neb_trajectory.xyz"],
+                            extra_args=extra))
 
     cfg     = load_config(args.config)
     neb_cfg = cfg["neb"]
@@ -125,8 +144,6 @@ def main():
     if args.method:          neb_cfg["method"]          = args.method
     if args.spring_constant: neb_cfg["spring_constant"] = args.spring_constant
 
-    out_dir      = Path(args.output_dir) if args.output_dir else \
-                   Path(f"outputs/reaction_{args.reaction_id:04d}")
     relaxed_path = out_dir / "relaxed_endpoints.json"
 
     if not relaxed_path.exists():

@@ -2,13 +2,13 @@
 name: monitoring-convergence
 description: >
   Diagnoses NEB convergence failures and drives an agent-based retry loop.
-  Calls nebskill:compute_diagnostics, reasons about the failure mode, chooses
-  one intervention, and re-runs nebskill:run_neb with adjusted parameters.
+  Calls nebskill-diagnose, reasons about the failure mode, chooses
+  one intervention, and re-runs nebskill-neb with adjusted parameters.
   Use only when running-neb returns returncode=4.
 allowed-tools: Bash Read Write
 ---
 
-Only enter this step if `nebskill:run_neb` exited with code 4. You drive the
+Only enter this step if `nebskill-neb` exited with code 4. You drive the
 retry loop: diagnose → reason → intervene → re-run → repeat.
 
 Maximum attempts: `retry.max_attempts` in config (default 3).
@@ -18,7 +18,7 @@ Maximum attempts: `retry.max_attempts` in config (default 3).
 ## 4.1 — Compute diagnostics
 
 ```bash
-nebskill:compute_diagnostics --reaction-id INT
+nebskill-diagnose --reaction-id INT
 ```
 
 Read `outputs/reaction_{id:04d}/diagnostics.json` in full.
@@ -62,25 +62,25 @@ already failed.
 
 | Intervention | CLI flag |
 |---|---|
-| More images | `--n-images N` on nebskill:run_neb |
-| Different spring constant | `--spring-constant K` on nebskill:run_neb |
-| Switch to string method | `--method string` on nebskill:run_neb |
-| Re-relax endpoints tighter | `nebskill:relax_endpoints --fmax 0.005`, then nebskill:run_neb |
+| More images | `--n-images N` on nebskill-neb |
+| Different spring constant | `--spring-constant K` on nebskill-neb |
+| Switch to string method | `--method string` on nebskill-neb |
+| Re-relax endpoints tighter | `nebskill-relax --fmax 0.005`, then nebskill-neb |
 
 ---
 
 ## 4.4 — Re-run NEB
 
 ```bash
-nebskill:run_neb --reaction-id INT \
+nebskill-neb --reaction-id INT \
     [--n-images N] [--spring-constant K] [--method string]
 ```
 
 For endpoint re-relaxation:
 
 ```bash
-nebskill:relax_endpoints --reaction-id INT --fmax 0.005
-nebskill:run_neb   --reaction-id INT
+nebskill-relax --reaction-id INT --fmax 0.005
+nebskill-neb   --reaction-id INT
 ```
 
 ---

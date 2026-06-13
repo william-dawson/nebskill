@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "nebskill": {
-      "command": "uv",
-      "args": ["run", "nebskill-mcp"]
-    }
-  }
-}

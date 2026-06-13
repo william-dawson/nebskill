@@ -11,7 +11,8 @@ organic molecules using MACE-OFF23 and the Transition1x dataset.
 /reload-plugins
 ```
 
-Then run `/nebskill:setup` to configure your machine and install the Python package.
+Then run `/nebskill:configuring-machine` to configure your machine and install
+the Python package.
 
 ## Usage
 

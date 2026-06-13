@@ -79,14 +79,28 @@ def main():
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--fmax", type=float, default=None,
                         help="Override relaxation fmax (for tighter re-relaxation)")
+    parser.add_argument("--local", action="store_true",
+                        help="Force local execution, skipping RemoteManager dispatch")
     args = parser.parse_args()
+
+    out_dir = Path(args.output_dir) if args.output_dir else \
+              Path(f"outputs/reaction_{args.reaction_id:04d}")
+
+    # Dispatch to the remote node if configured (and not already a worker).
+    from nebskill.dispatch import remote_config, submit
+    if not args.local:
+        remote = remote_config()
+        if remote is not None:
+            extra = ["--fmax", str(args.fmax)] if args.fmax else []
+            sys.exit(submit(remote, "nebskill.relax", args.reaction_id, out_dir,
+                            send=["endpoints.json"],
+                            recv=["relaxed_endpoints.json", "relax_failure.json"],
+                            extra_args=extra))
 
     cfg       = load_config(args.config)
     relax_cfg = cfg["relaxation"]
     fmax      = args.fmax if args.fmax else relax_cfg["fmax"]
 
-    out_dir        = Path(args.output_dir) if args.output_dir else \
-                     Path(f"outputs/reaction_{args.reaction_id:04d}")
     endpoints_path = out_dir / "endpoints.json"
 
     if not endpoints_path.exists():

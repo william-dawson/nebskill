@@ -14,14 +14,14 @@ Produces all output artifacts from a converged NEB and summarises the results.
 Run all three in sequence:
 
 ```bash
-nebskill:analyze_results --reaction-id INT
-nebskill:analyze_results    --reaction-id INT
-nebskill:analyze_results  --reaction-id INT
+nebskill-analyze --reaction-id INT
+nebskill-plot    --reaction-id INT
+nebskill-writer  --reaction-id INT
 ```
 
 ---
 
-## nebskill:analyze_results — barriers and comparison
+## nebskill-analyze — barriers and comparison
 
 Reads `neb_result.json` and `relaxed_endpoints.json`. Computes:
 
@@ -34,7 +34,7 @@ Writes `outputs/reaction_{id:04d}/report.json`.
 
 ---
 
-## nebskill:analyze_results — energy profile
+## nebskill-plot — energy profile
 
 Writes `outputs/reaction_{id:04d}/energy_profile.png`:
 - Energy vs image index relative to reactant
@@ -43,7 +43,7 @@ Writes `outputs/reaction_{id:04d}/energy_profile.png`:
 
 ---
 
-## nebskill:analyze_results — trajectory and log
+## nebskill-writer — trajectory and log
 
 - `neb_trajectory.xyz` — all NEB images in extended XYZ format
 - `convergence.log` — tab-separated phase summary:

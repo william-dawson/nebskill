@@ -102,28 +102,29 @@ as a CLI flag to the relevant script. Do not modify the yaml files.
 
 ## Step 3 — Run the pipeline
 
-Execute each step in order. Read the step's INSTRUCTIONS.md before running it,
-then report a brief summary of what happened before moving to the next.
+Execute each step in order by running its CLI command. Read the step's skill
+for details, then report a brief summary before moving to the next. The relax
+and neb commands automatically submit a job via RemoteManager when
+`nebskill_remote.yaml` is present — no extra handling needed.
 
-1. **Load reaction** — call `nebskill:load_reaction(reaction_id=INT)`
+1. **Load reaction** — run `nebskill-load --reaction-id INT`
    - See `/nebskill:loading-reaction` for output schema
    - Report: formula, number of atoms, DFT barrier from Transition1x
 
-2. **Relax endpoints** — call `nebskill:relax_endpoints(reaction_id=INT)`
-   - See `/nebskill:relaxing-endpoints` — submits a SLURM GPU job
+2. **Relax endpoints** — run `nebskill-relax --reaction-id INT`
+   - See `/nebskill:relaxing-endpoints` — runs on a compute node
    - Report: converged fmax for reactant and product, optimizer used
 
-3. **Run NEB** — call `nebskill:run_neb(reaction_id=INT)`
-   - See `/nebskill:running-neb` — submits a SLURM GPU job
+3. **Run NEB** — run `nebskill-neb --reaction-id INT`
+   - See `/nebskill:running-neb` — runs on a compute node
    - Report: whether phase 1 and phase 2 converged, final fmax, steps taken
 
-4. **Monitor & retry if needed** — call `nebskill:compute_diagnostics(reaction_id=INT)`, then
-   reason and call `nebskill:run_neb` again with adjusted parameters
-   - See `/nebskill:monitoring-convergence` — only if run_neb returned returncode=4
+4. **Monitor & retry if needed** — only if `nebskill-neb` exited with code 4
+   - See `/nebskill:monitoring-convergence`
    - Report: diagnosed failure mode, intervention chosen, outcome
 
-5. **Analyze & report** — call `nebskill:analyze_results(reaction_id=INT)`
-   - See `/nebskill:analyzing-results` — runs on login node
+5. **Analyze & report** — run `nebskill-analyze`, `nebskill-plot`, `nebskill-writer`
+   - See `/nebskill:analyzing-results`
    - Report: forward and reverse barriers in eV and kcal/mol, MACE-OFF vs DFT
      error, location of the transition state image
 

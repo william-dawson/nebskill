@@ -1,25 +1,28 @@
 ---
 name: configuring-machine
 description: >
-  Configures RemoteManager for this machine, detects available accelerators from inside a
-  real compute node via a probe job, installs Python dependencies with uv, and
-  writes nebskill_remote.yaml. Use once on each new machine before running any
-  NEB calculations, or when the user asks how to set up nebskill.
+  Configures RemoteManager for this machine, detects available accelerators
+  from inside a compute node, installs the nebskill Python package with uv
+  (locally and, if the cluster is remote, on the cluster too), and writes
+  nebskill_remote.yaml. Use once on each new machine before running any NEB
+  calculations, or when the user asks how to set up nebskill.
 allowed-tools: Bash Read Write
 ---
 
 ## Checklist
 
 Work through each item in order. Tick off each one before moving to the next.
-Each step depends on the previous.
 
 - [ ] 1. Working directory
-- [ ] 2. RemoteManager configuration (from real jobscript)
-- [ ] 3. Probe compute node for accelerators
-- [ ] 4. Create project pyproject.toml
-- [ ] 5. Install dependencies with uv sync
-- [ ] 6. Capture Python path
-- [ ] 7. Write nebskill_remote.yaml
+- [ ] 2. RemoteManager configuration (from a real jobscript)
+- [ ] 3. Probe a compute node for accelerators
+- [ ] 4. Install nebskill with uv (local, and remote if the cluster is remote)
+- [ ] 5. Capture the compute Python path
+- [ ] 6. Write nebskill_remote.yaml
+
+There is no MCP server. The `nebskill-*` CLI commands handle job submission
+and file transfer through RemoteManager automatically when nebskill_remote.yaml
+is present. Nothing needs to be reloaded after setup.
 
 ---
 
@@ -28,7 +31,8 @@ Each step depends on the previous.
 Ask:
 > "Where would you like to run NEB calculations? (full path to a directory)"
 
-Create it if it doesn't exist.
+Create it if it doesn't exist. This is the **local** working directory where
+Claude runs and where outputs are collected.
 
 ---
 
@@ -37,58 +41,41 @@ Create it if it doesn't exist.
 Ask the user:
 > "Can you paste a typical jobscript you use on this machine?"
 
-Read it carefully. Extract the existing values:
-- `#SBATCH` directives (partition, account, nodes, time, any accelerator lines)
-- Any `module load` or environment setup lines
-
+Read it and extract the `#SBATCH` directives and any `module load` lines.
 Also run:
 ```bash
 hostname
 which sbatch
 ```
 
-Determine `host` (`localhost` if already on the cluster head node, otherwise
-the login node hostname) and `submitter` (`sbatch` or `bash`).
+Determine:
+- `host`: `localhost` if Claude is running on the cluster itself (login node
+  with a shared filesystem to the compute nodes), otherwise the SSH hostname
+  of the cluster's login node
+- `submitter`: `sbatch` (SLURM) or `bash` (run directly)
 
-Now ask the user if they want to adjust any values before locking them in:
-> "I'll use these settings from your jobscript — want to tweak anything?
->   - Time limit: `HH:MM:SS`
->   - Nodes / CPUs / accelerators
->   - Account or partition"
+Ask the user if they want to tweak anything (time limit, nodes, CPUs,
+accelerators, account, partition) before locking the values in.
 
-Confirm the final values, then build the template by:
-1. Taking the jobscript verbatim with the agreed values hardcoded
-2. Removing the original run command at the bottom
-3. Adding `#COMMAND#` as the final line — the only RemoteManager placeholder
-4. Adding `#JOBDIR#` to the `--output` and `--error` lines if present
-
-Everything else stays hardcoded. Do not introduce any other `#PARAMETER#`
-placeholders.
+Build the SLURM template by taking the jobscript verbatim with the agreed
+values **hardcoded**, removing the original run command, and adding `#COMMAND#`
+as the final line. Add `#JOBDIR#` to the `--output`/`--error` paths. Do not
+introduce any other `#PARAMETER#` placeholders.
 
 ---
 
-## 3 — Probe compute node for accelerators
+## 3 — Probe a compute node for accelerators
 
-Use RemoteManager directly to submit the probe — do not write a manual
-jobscript. Build a minimal `Computer` from the settings confirmed in step 2
-and submit a function that detects available accelerators:
+Submit a short probe via RemoteManager using system `python3` (no install
+needed yet) to see what the compute node actually has:
 
 ```python
 from remotemanager import Computer, Dataset
 
-url = Computer(
-    template=slurm_template,   # from step 2
-    host=host,
-    submitter=submitter,
-    python="python3",          # system python is fine for this probe
-)
-url.partition = partition
-url.account   = account
-url.walltime  = "00:05:00"    # short probe job
-# only set if user's jobscript had GPU directives:
-# url.gpus = gpus
+url = Computer(template=slurm_template, host=host, submitter=submitter,
+               python="python3")
 
-def detect_gpu():
+def detect_accelerator():
     import subprocess
     out = {}
     for cmd in [["nvidia-smi"], ["rocm-smi", "--version"], ["xpu-smi", "discovery"]]:
@@ -96,126 +83,129 @@ def detect_gpu():
         out[cmd[0]] = r.stdout if r.returncode == 0 else None
     return out
 
-ds = Dataset(detect_gpu, url=url)
+ds = Dataset(detect_accelerator, url=url)
 ds.append_run({})
-ds.run()
-ds.wait()
-ds.fetch_results()
+ds.run(); ds.wait(); ds.fetch_results()
 result = ds.results[0]
 ```
 
 Interpret `result`:
-- `nvidia-smi` has output → NVIDIA; read CUDA version from top-right
-  → index suffix `cu{MAJOR}{MINOR}` (e.g. CUDA 13.2 → `cu132`)
-- `rocm-smi` has output → AMD ROCm; read version
-  → suffix `rocm{MAJOR}.{MINOR}`
-- `xpu-smi` has output → Intel XPU; warn user that
-  `intel-extension-for-pytorch` is required separately
-- Nothing → CPU only
+- `nvidia-smi` → NVIDIA; read CUDA version → index `cu{MAJOR}{MINOR}` (CUDA 13.2 → `cu132`)
+- `rocm-smi` → AMD ROCm → index `rocm{MAJOR}.{MINOR}`
+- `xpu-smi` → Intel XPU; warn `intel-extension-for-pytorch` is needed separately
+- nothing → CPU only
 
-Show the user what was found and confirm before continuing.
+Show the user what was found and confirm before installing.
 
 ---
 
-## 4 — Create project pyproject.toml
+## 4 — Install nebskill with uv
 
-Write to `WORKING_DIR/pyproject.toml`:
-
+The pyproject.toml for the project is just:
 ```toml
 [project]
 name = "neb-project"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = [
-    "nebskill @ git+https://github.com/william-dawson/nebskill.git"
-]
+dependencies = ["nebskill @ git+https://github.com/william-dawson/nebskill.git"]
 ```
 
----
-
-## 5 — Install with uv sync
-
-**Important:** HPC systems often have low process caps (`ulimit -u`) that
-prevent uv from spawning the threads it needs. Always run these two steps
-before `uv sync`:
-
+**Always set these before any `uv sync`** (HPC process caps break uv otherwise):
 ```bash
-# Step 1: raise the soft process limit to the hard limit
 ulimit -s 512
-
-# Step 2: clamp uv's thread demand via env vars
-# (--jobs flag is not reliable across uv versions)
-export RAYON_NUM_THREADS=1
-export TOKIO_WORKER_THREADS=1
-export UV_CONCURRENT_DOWNLOADS=4
-export UV_CONCURRENT_BUILDS=1
-export CARGO_BUILD_JOBS=1
+export RAYON_NUM_THREADS=1 TOKIO_WORKER_THREADS=1
+export UV_CONCURRENT_DOWNLOADS=4 UV_CONCURRENT_BUILDS=1 CARGO_BUILD_JOBS=1
 ```
 
-Then run `uv sync` with the appropriate index:
-
-**NVIDIA** — verify index URL first:
+For NVIDIA, verify the index URL first:
 ```bash
 curl -sI https://download.pytorch.org/whl/cu{VERSION}/ | head -1
 ```
-If not `200`/`301`: check https://download.pytorch.org/whl/ for the nearest
-available version and tell the user before proceeding.
+If not `200`/`301`, use the nearest version from https://download.pytorch.org/whl/
+and tell the user. The index flag is `--index https://download.pytorch.org/whl/cu{VERSION}`
+(or `rocm{VERSION}`); omit it entirely for CPU.
+
+### If `host` is `localhost`
+
+The local venv is also the compute venv. Write the pyproject.toml in
+WORKING_DIR and sync there:
 ```bash
-cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/cu{VERSION}
+cd WORKING_DIR && uv sync [--index ...]
 ```
 
-**AMD ROCm:**
+### If `host` is remote
+
+Two installs are needed: the **local** one gives Claude the `nebskill-*`
+commands and the dispatch logic; the **remote** one runs the actual jobs.
+
+Local (in WORKING_DIR):
 ```bash
-cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/rocm{VERSION}
+cd WORKING_DIR && uv sync [--index ...]
 ```
 
-**CPU only:**
-```bash
-cd WORKING_DIR && uv sync
+Remote — drive it over the RemoteManager connection. Pick a remote project
+directory (e.g. `~/nebskill-project`) and run, via `url.cmd(...)`:
+```python
+from remotemanager import URL
+url = URL(host=host)
+url.cmd("command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh")
+url.cmd(f"mkdir -p {remote_dir}")
+url.cmd(f"cat > {remote_dir}/pyproject.toml << 'EOF'\n{pyproject_contents}\nEOF")
+url.cmd(f"cd {remote_dir} && ulimit -s 512 && "
+        "RAYON_NUM_THREADS=1 TOKIO_WORKER_THREADS=1 UV_CONCURRENT_BUILDS=1 "
+        "CARGO_BUILD_JOBS=1 uv sync [--index ...]")
 ```
-
-Show output. If thread/process errors still appear, set `RAYON_NUM_THREADS=1`
-and `UV_CONCURRENT_BUILDS=1` and retry.
+Show the user the output of each remote command.
 
 ---
 
-## 6 — Capture Python path
+## 5 — Capture the compute Python path
 
+This is the Python that RemoteManager will use to run jobs — it must be the
+venv on whichever machine the compute happens.
+
+**localhost:**
 ```bash
 cd WORKING_DIR && uv run python -c "import sys; print(sys.executable)"
 ```
 
+**remote:** capture it over the connection:
+```python
+python_path = url.cmd(f"cd {remote_dir} && uv run python -c "
+                      "'import sys; print(sys.executable)'").stdout.strip()
+```
+
 ---
 
-## 7 — Write nebskill_remote.yaml
+## 6 — Write nebskill_remote.yaml
 
 Write to `WORKING_DIR/nebskill_remote.yaml`:
 
 ```yaml
 # Generated by /nebskill:configuring-machine — do not edit manually
-python: PYTHON_PATH_FROM_STEP_6
+python: COMPUTE_PYTHON_PATH_FROM_STEP_5
 host: HOST
 submitter: SUBMITTER
-project_dir: WORKING_DIR   # absolute path — used to resolve output file locations
+project_dir: WORKING_DIR   # local; where outputs are collected
 slurm_template: |
   #!/bin/bash
-  #SBATCH --partition=1n1gpu          ← hardcoded from user's jobscript
-  #SBATCH --account=ra123456          ← hardcoded
-  #SBATCH --nodes=1                   ← hardcoded
-  #SBATCH --time=02:00:00             ← hardcoded
+  #SBATCH --partition=1n1gpu          # hardcoded from user's jobscript
+  #SBATCH --account=ra123456          # hardcoded
+  #SBATCH --nodes=1                   # hardcoded
+  #SBATCH --time=02:00:00             # hardcoded
   #SBATCH --output=#JOBDIR#/slurm_%j.out
   #SBATCH --error=#JOBDIR#/slurm_%j.err
 
   #COMMAND#
 ```
 
-All SLURM directives are hardcoded. Only `#JOBDIR#` and `#COMMAND#` are
-RemoteManager placeholders — `#JOBDIR#` is the job's working directory,
-`#COMMAND#` is the Python invocation RemoteManager injects.
+Only `#JOBDIR#` and `#COMMAND#` are RemoteManager placeholders; everything
+else is hardcoded.
 
 ---
 
 ## Done
 
-Report the completed checklist, then tell the user to run Claude Code from
-`WORKING_DIR` so the MCP server starts with the correct environment.
+Report the completed checklist. The `nebskill-*` commands are now installed
+and will dispatch jobs through RemoteManager automatically — the user can run
+NEB calculations immediately, no reload required.
