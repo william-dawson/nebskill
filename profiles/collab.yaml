@@ -1,6 +1,0 @@
-# Collaborator machine.
-# Do not edit directly — managed by /nebskill:setup.
-uv:
-  # No torch index override — uv picks the default CUDA wheel from PyPI.
-  torch_index_name: ""
-  torch_index_url: ""

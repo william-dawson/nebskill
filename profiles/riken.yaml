@@ -1,7 +1,0 @@
-# RIKEN RCCS AI4S Supercomputer
-# Do not edit directly — managed by /nebskill:setup.
-uv:
-  # PyTorch index for CUDA 13.2. Verify the exact URL at:
-  # https://download.pytorch.org/whl/
-  torch_index_name: pytorch-cu132
-  torch_index_url: "https://download.pytorch.org/whl/cu132"

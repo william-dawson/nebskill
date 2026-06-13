@@ -1,65 +1,71 @@
 ---
 name: setup
 description: >
-  First-time setup for nebskill on a new machine. Detects the machine,
-  installs the nebskill Python package via uv tool install (with the correct
-  PyTorch CUDA variant), and verifies the installation. Run this once before
-  using the nebskill skill.
+  First-time setup for nebskill on a new machine. Detects the GPU and CUDA
+  version, installs the nebskill Python package via uv with the correct
+  PyTorch variant, and verifies the installation. Run once before using
+  any other nebskill skill.
 allowed-tools: Bash Read Write
 ---
 
 ## What this skill does
 
-1. Detect which machine we're on
-2. Install the nebskill package (and all Python dependencies) via `uv tool install`
-3. Verify the installation worked
-
-All Python dependencies are installed automatically from GitHub.
-Default parameters are bundled with the package — no config files needed.
-A `neb_local.yaml` in the working directory can override any default.
+1. Detect whether a GPU is available and which CUDA version it supports
+2. Construct the correct `uv tool install` command for this machine
+3. Install the nebskill package (all Python dependencies included)
+4. Verify the installation
 
 ---
 
-## Step 1 — Detect machine
+## Step 1 — Detect GPU and CUDA version
 
 Run:
 ```bash
-hostname
+nvidia-smi
 ```
 
-- Contains `r-ccs.riken.jp` → **RIKEN AI4S** — use `${CLAUDE_PLUGIN_ROOT}/profiles/riken.yaml`
-- Anything else → ask: "Which machine is this — RIKEN or collaborator?"
-  - collaborator → use `${CLAUDE_PLUGIN_ROOT}/profiles/collab.yaml`
-  - neither → list `${CLAUDE_PLUGIN_ROOT}/profiles/` and ask which to use
+- If `nvidia-smi` is not found: no NVIDIA GPU available — install CPU-only
+- If found: read the **CUDA Version** from the top-right of the output
+  (e.g. `CUDA Version: 13.2`)
 
-Read the chosen profile to get the `uv.torch_index_url` value.
+Extract the major and minor version numbers (e.g. `13.2` → `132`).
+This becomes the PyTorch index suffix.
 
 ---
 
-## Step 2 — Install
+## Step 2 — Construct the install command
 
-**If `torch_index_url` is non-empty** (e.g. RIKEN with CUDA 13.2):
+**With GPU (CUDA detected):**
 
-Before installing, verify the index URL is reachable:
-```bash
-curl -sI <torch_index_url> | head -1
+The PyTorch index URL follows the pattern:
 ```
-If it does not return `200` or `301`, warn the user the URL may be wrong and
-ask them to verify at https://download.pytorch.org/whl/ before continuing.
+https://download.pytorch.org/whl/cu{VERSION}
+```
+where `{VERSION}` is the CUDA version with no dot (e.g. `cu132` for CUDA 13.2).
 
-Then install with the CUDA index:
+Before installing, verify the index URL exists:
+```bash
+curl -sI https://download.pytorch.org/whl/cu{VERSION}/ | head -1
+```
+
+If it returns `200` or `301`, proceed. If not (e.g. CUDA version too new for
+current PyTorch), check https://download.pytorch.org/whl/ for the closest
+available version and use that instead. Tell the user which version is being
+used and why.
+
+Install with:
 ```bash
 uv tool install git+https://github.com/william-dawson/nebskill.git \
-    --index <torch_index_url>
+    --index https://download.pytorch.org/whl/cu{VERSION}
 ```
 
-**If `torch_index_url` is empty** (collaborator machine):
+**Without GPU (CPU only):**
+
 ```bash
 uv tool install git+https://github.com/william-dawson/nebskill.git
 ```
 
-This will take several minutes on first run (~1–2 GB download for PyTorch +
-MACE-OFF). Show the output so the user can see progress.
+MACE-OFF will run on CPU — functional but slow. Warn the user.
 
 ---
 
@@ -69,12 +75,11 @@ MACE-OFF). Show the output so the user can see progress.
 nebskill-load --help
 ```
 
-If the command is found, installation succeeded. Report what was installed and
-remind the user they can now run NEB calculations.
+If the command is found, installation succeeded. Report what was installed
+and remind the user they can now run NEB calculations.
 
-If the command is not found, uv may not have added its bin directory to PATH.
-Suggest:
+If not found, uv may not have added its bin to PATH. Suggest:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
-And ask the user to add this to their shell profile.
+and adding this to their shell profile (`~/.bashrc` or `~/.zshrc`).
