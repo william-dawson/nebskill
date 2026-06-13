@@ -5,29 +5,37 @@ dataset:
   download_url: https://ndownloader.figshare.com/files/36035789
 
 calculator:
-  model: mace-off
+  backend: mace               # mace | pyscf
+  # --- mace backend ---
   model_size: medium          # small | medium | large
   device: auto                # auto | cpu | cuda
   dtype: float64
+  # --- pyscf backend (reproduce Transition1x level of theory) ---
+  xc: wb97x                   # ωB97X, as in the dataset paper
+  basis: 6-31g(d)             # 6-31G(d), as in the dataset paper
 
 relaxation:
   optimizer_1: FIRE
   optimizer_1_max_steps: 500
   optimizer_2: BFGS
-  fmax: 0.01                  # eV/Å
+  fmax: 0.01                  # eV/Å — endpoint relaxation (paper: 0.01)
 
+# Defaults are close to the Transition1x recipe (10 images, k=0.1, CI-NEB to
+# 0.05 eV/Å) but intentionally not a strict clone. The goal is to reproduce
+# most reactions and then surface deviations — especially cases where our NEB
+# finds a LOWER barrier (a better saddle / path) than the dataset reports.
 neb:
   n_images: auto              # auto = max(n_images_min, round(path_length_Å / images_per_angstrom))
   images_per_angstrom: 1.0
-  n_images_min: 9
+  n_images_min: 10            # paper uses 10
   method: improvedtangent     # improvedtangent | string | spline | eb
   interpolation: idpp         # idpp | linear
-  spring_constant: 0.1        # eV/Å
+  spring_constant: 0.1        # eV/Å — paper value
   remove_rotation_translation: true
-  phase1_fmax: 0.3            # eV/Å — standard NEB convergence target
-  phase1_max_steps: 200
-  phase2_fmax: 0.05           # eV/Å — CI-NEB convergence target
-  phase2_max_steps: 300
+  phase1_fmax: 0.5            # eV/Å — paper's plain-NEB target
+  phase1_max_steps: 300
+  phase2_fmax: 0.05           # eV/Å — paper's CI-NEB target
+  phase2_max_steps: 500
 
 retry:
   max_attempts: 3

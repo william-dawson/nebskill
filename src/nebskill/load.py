@@ -85,6 +85,16 @@ def validate_and_build_result(data: dict, cfg: dict,
 
     formula_str = Atoms(numbers=data["atomic_numbers"]).get_chemical_formula()
 
+    # Transition1x stores no charge/spin — its GDB7-derived reactions are
+    # neutral closed/open-shell CHNO species. Infer:
+    #   charge = 0 (neutral)
+    #   spin   = (n_electrons mod 2): 0 for even (singlet), 1 for odd (doublet)
+    # This is the parity-correct default. For an even-electron species that is
+    # actually a triplet, override spin in endpoints.json before relaxing.
+    charge       = 0
+    n_electrons  = int(sum(int(z) for z in data["atomic_numbers"])) - charge
+    spin         = n_electrons % 2
+
     return {
         "reaction_id":            reaction_id,
         "split":                  split,
@@ -92,6 +102,9 @@ def validate_and_build_result(data: dict, cfg: dict,
         "rxn_key":                rxn_key,
         "n_atoms":                int(len(data["atomic_numbers"])),
         "n_traj_frames":          int(len(data["traj_energies"])),
+        "n_electrons":            n_electrons,
+        "charge":                 charge,
+        "spin":                   spin,
         "dft_forward_barrier_ev": round(float(forward_barrier), 6),
         "dft_reverse_barrier_ev": round(float(reverse_barrier), 6),
         "dft_e_reactant_ev":      round(float(data["e_react"]), 6),

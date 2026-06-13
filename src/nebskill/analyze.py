@@ -32,15 +32,25 @@ def main():
     forward_barrier  = e_ts - e_reactant
     reverse_barrier  = e_ts - e_product
     dft_forward      = endpoints["dft_forward_barrier_ev"]
-    mace_error       = forward_barrier - dft_forward
-    rel_error        = (mace_error / dft_forward * 100) if dft_forward != 0 else None
+
+    backend    = relaxed.get("backend", "mace")
+    # Deviation of our barrier from the dataset's DFT reference. A negative
+    # value means we found a LOWER barrier — a better saddle or path than the
+    # dataset reports. These are the scientifically interesting cases.
+    deviation  = forward_barrier - dft_forward
+    dev_pct    = (deviation / dft_forward * 100) if dft_forward else None
+    LOWER_BARRIER_THRESHOLD = 0.05   # eV (~1 kcal/mol)
+    found_lower = deviation < -LOWER_BARRIER_THRESHOLD
 
     report = {
         "reaction_id":              args.reaction_id,
         "formula":                  endpoints["formula"],
         "rxn_key":                  endpoints["rxn_key"],
         "n_atoms":                  endpoints["n_atoms"],
-        "mace_model_size":          relaxed["mace_model_size"],
+        "backend":                  backend,
+        "model_size":               relaxed.get("model_size"),
+        "charge":                   endpoints.get("charge", 0),
+        "spin":                     endpoints.get("spin", 0),
         "n_images":                 neb_result["n_images"],
         "neb_method":               neb_result["method"],
         "forward_barrier_ev":       round(forward_barrier, 4),
@@ -48,12 +58,13 @@ def main():
         "reverse_barrier_ev":       round(reverse_barrier, 4),
         "reverse_barrier_kcal":     round(reverse_barrier * EV_TO_KCAL, 3),
         "ts_image_idx":             ts_idx,
-        "mace_e_reactant_ev":       round(e_reactant, 6),
-        "mace_e_ts_ev":             round(e_ts,       6),
-        "mace_e_product_ev":        round(e_product,  6),
+        "neb_e_reactant_ev":        round(e_reactant, 6),
+        "neb_e_ts_ev":              round(e_ts,       6),
+        "neb_e_product_ev":         round(e_product,  6),
         "dft_forward_barrier_ev":   dft_forward,
-        "mace_vs_dft_error_ev":     round(mace_error, 4),
-        "mace_vs_dft_relative_pct": round(rel_error, 2) if rel_error is not None else None,
+        "barrier_deviation_ev":     round(deviation, 4),
+        "barrier_deviation_pct":    round(dev_pct, 2) if dev_pct is not None else None,
+        "found_lower_barrier":      found_lower,
         "neb_converged":            latest["converged"],
         "phase1_steps":             neb_result.get("phase1", {}).get("steps_taken"),
         "phase2_steps":             latest["steps_taken"],
@@ -64,14 +75,18 @@ def main():
     out_path = out_dir / "report.json"
     out_path.write_text(json.dumps(report, indent=2))
 
-    print(f"Reaction {args.reaction_id} ({report['formula']}) — NEB analysis")
+    print(f"Reaction {args.reaction_id} ({report['formula']}) — NEB analysis [{backend}]")
     print(f"  Forward barrier:  {forward_barrier:.3f} eV  "
           f"({forward_barrier * EV_TO_KCAL:.1f} kcal/mol)")
     print(f"  Reverse barrier:  {reverse_barrier:.3f} eV  "
           f"({reverse_barrier * EV_TO_KCAL:.1f} kcal/mol)")
     print(f"  TS image index:   {ts_idx}")
     print(f"  DFT reference:    {dft_forward:.3f} eV")
-    print(f"  MACE-OFF error:   {mace_error:+.3f} eV  ({rel_error:+.1f}%)")
+    print(f"  Deviation:        {deviation:+.3f} eV"
+          + (f"  ({dev_pct:+.1f}%)" if dev_pct is not None else ""))
+    if found_lower:
+        print(f"  *** LOWER BARRIER than dataset by {abs(deviation):.3f} eV — "
+              f"possible better saddle/path ***")
     print(f"Report written to {out_path}")
 
 

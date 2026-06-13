@@ -79,6 +79,8 @@ def main():
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--fmax", type=float, default=None,
                         help="Override relaxation fmax (for tighter re-relaxation)")
+    parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
+                        help="Override calculator backend (default from config)")
     parser.add_argument("--local", action="store_true",
                         help="Force local execution, skipping RemoteManager dispatch")
     args = parser.parse_args()
@@ -92,12 +94,16 @@ def main():
         remote = remote_config()
         if remote is not None:
             extra = ["--fmax", str(args.fmax)] if args.fmax else []
+            if args.backend:
+                extra += ["--backend", args.backend]
             sys.exit(submit(remote, "nebskill.relax", args.reaction_id, out_dir,
                             send=["endpoints.json"],
                             recv=["relaxed_endpoints.json", "relax_failure.json"],
                             extra_args=extra))
 
     cfg       = load_config(args.config)
+    if args.backend:
+        cfg["calculator"]["backend"] = args.backend
     relax_cfg = cfg["relaxation"]
     fmax      = args.fmax if args.fmax else relax_cfg["fmax"]
 
@@ -109,10 +115,14 @@ def main():
         sys.exit(1)
 
     endpoints = json.loads(endpoints_path.read_text())
+    charge = endpoints.get("charge", 0)
+    spin   = endpoints.get("spin", 0)
+    backend = cfg.get("calculator", {}).get("backend", "mace")
     print(f"Relaxing endpoints for reaction {args.reaction_id} "
-          f"({endpoints['formula']}) with MACE-OFF {cfg['calculator']['model_size']}")
+          f"({endpoints['formula']}) with backend={backend} "
+          f"(charge={charge}, spin={spin})")
 
-    calc    = make_calculator(cfg)
+    calc    = make_calculator(cfg, charge=charge, spin=spin)
     results = {}
     failure = None
 
@@ -144,7 +154,8 @@ def main():
         "rxn_key":                endpoints["rxn_key"],
         "dft_forward_barrier_ev": endpoints["dft_forward_barrier_ev"],
         "dft_reverse_barrier_ev": endpoints["dft_reverse_barrier_ev"],
-        "mace_model_size":        cfg["calculator"]["model_size"],
+        "backend":                cfg["calculator"].get("backend", "mace"),
+        "model_size":             cfg["calculator"].get("model_size"),
         "reactant":               results["reactant"],
         "product":                results["product"],
         "ts_reference":           endpoints["ts_reference"],

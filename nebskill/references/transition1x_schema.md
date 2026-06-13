@@ -2,16 +2,31 @@
 
 ## Overview
 
-Transition1x contains DFT calculations (ωB97x/6-31G*) for 9.6 million
-molecular configurations along and around minimum energy paths for ~20,000
-organic reactions involving H, C, N, O, F.
+Transition1x contains DFT calculations (ωB97X/6-31G(d)) for ~9.6 million
+molecular configurations along and around minimum energy paths for 10,073
+converged organic reactions involving **H, C, N, O** (GDB7-derived; no F/S/Cl).
 
 File: `data/Transition1x.h5` (~6.2 GB)
 Download: `https://ndownloader.figshare.com/files/36035789`
-Total reactions: 20,146 (across data/train/val/test splits)
+Splits: `data` (all 10,073 reactions) plus `train`/`val`/`test` partitions of
+the same reactions.
 
 Reference: Schreiner et al., Scientific Data 2022,
 https://www.nature.com/articles/s41597-022-01870-w
+
+## Charge and spin
+
+The file stores only `atomic_numbers`, `positions`, energies, and forces — no
+charge or spin. The reactions are neutral GDB7-derived CHNO species, so:
+- **charge = 0**
+- **spin = n_electrons mod 2** — singlet (0) for even electron count, doublet
+  (1) for odd (radicals). This is the parity-correct default.
+
+`nebskill-load` computes and records `charge`, `spin`, and `n_electrons` in
+endpoints.json. The PySCF backend uses them (RKS for spin 0, UKS otherwise).
+To validate the inference, compare a single-point energy at the stored
+`reactant`/`transition_state` geometry against `dft_e_reactant_ev` /
+`dft_e_ts_ev`; a match confirms charge/spin and the level of theory.
 
 ## HDF5 structure
 
