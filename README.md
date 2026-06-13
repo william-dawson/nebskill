@@ -19,21 +19,6 @@ the Python package.
 Ask Claude about reaction barriers, transition states, or NEB calculations.
 The skill activates automatically, or invoke it directly.
 
-## Non-interactive mode
-
-Claude Code can run a single reaction non-interactively with `-p`:
-
-```bash
-claude -p "Run /nebskill for reaction 42, use all defaults." \
-    --dangerouslySkipPermissions
-```
-
-This runs the full pipeline — load, relax, NEB, retry if needed, analyze —
-and writes outputs to `outputs/reaction_0042/` without requiring human input.
-
-> **Note:** `--dangerouslySkipPermissions` allows Claude to run shell commands
-> without asking. Only use this in a controlled environment.
-
 ## Requirements
 
 - [Claude Code](https://claude.ai/code)
