@@ -1,0 +1,109 @@
+---
+name: finding-lower-barriers
+description: >
+  Hunt for Transition1x reactions whose published transition state is not the
+  lowest one — cases where the dataset's fixed-parameter NEB likely missed a
+  lower saddle. Triage cheaply with MACE, attack candidates with aggressive
+  NEB tweaking, and confirm any lower barrier at the dataset's own DFT level.
+  Use when the user wants to find flaws/missed saddles in the Transition1x
+  barriers or hunt for lower transition states.
+allowed-tools: Bash Read Write
+---
+
+## Premise
+
+Assume the dataset's DFT is correct. The suspected flaw is narrower: their NEB
+used **fixed parameters** (10 images, k=0.1, BFGS, single attempt) and was not
+exhaustively tweaked, so for some reactions it may have converged to a **higher
+saddle than the true minimum energy path**. We hunt for those.
+
+You cannot run DFT NEB on all 10,073 reactions. The whole game is **narrowing to
+a few high-probability candidates** before spending DFT compute.
+
+## The loop
+
+For each reaction under investigation: **triage → hypothesize → attack →
+confirm**. If your best effort only reproduces their barrier, that reaction is a
+null result — record it and move to the next.
+
+---
+
+## 1 — Triage (cheap, no DFT)
+
+Pick candidates using signals that cost little:
+
+**MACE as scout.** Run the pipeline with `--backend mace` (seconds–minutes per
+reaction). Flag reactions where MACE finds a barrier **meaningfully below** the
+dataset's DFT barrier (`found_lower_barrier` in report.json). This is a *lead,
+not proof* — MACE has its own error — but it is the strongest cheap filter, and
+the MACE-converged path becomes a warm-start guess for the DFT confirmation.
+
+**Stored-profile red flags.** `load` saves `dft_traj_energies` in endpoints.json.
+Inspect it for:
+- multiple peaks (the path may cross a higher saddle when a lower one exists)
+- a kinked / discontinuous profile
+- a TS that sits near a trajectory edge or is poorly centered
+These hint at an under-resolved path where a lower saddle was skipped.
+
+**Structural priors** — where fixed-parameter NEB fails most:
+- large reactant→product RMSD (10 images cut corners on a long path)
+- multi-bond / concerted rearrangements (a stepwise route via an intermediate
+  can be lower than a concerted one)
+- high or broad barriers (more room for an alternative mechanism)
+
+## 2 — Hypothesize
+
+For a candidate, state *why* the published TS might be too high before attacking.
+Examples: "concerted double-bond shift — a stepwise path through a carbene
+intermediate may be lower"; "reactant and product are far apart, the 10-image
+path likely cut the corner near the saddle"; "MACE prefers an anti vs syn TS."
+A concrete hypothesis tells you which lever to pull.
+
+## 3 — Attack (aggressive NEB)
+
+Use every lever in `/nebskill:monitoring-convergence`, harder than the dataset
+did. Productive moves for *finding a lower path* (not just converging one):
+- **More images** — resolve a corner the 10-image path cut.
+- **ODE optimizer** (`--optimizer ODE`) — best at localizing a tricky saddle.
+- **Different interpolation / endpoints** — if you have an intermediate guess
+  (e.g. from the MACE path or a hypothesized stepwise mechanism), seed it.
+- **Vary the spring constant both ways** — softer springs let the band follow a
+  curved valley a stiff band straightened over.
+- **Multiple attempts** from perturbed starting paths — a lower saddle in a
+  different basin won't be found from one initial guess.
+
+Watch `neb_progress.jsonl` live (background the run) to see whether you are
+settling into a lower, smoother profile than the dataset's.
+
+## 4 — Confirm (the bar for claiming a flaw)
+
+A real flaw requires **ALL** of the following — anything less is a null result:
+
+- [ ] **Lower by a meaningful margin** — barrier below the dataset's by > ~0.1 eV
+      (well beyond the ~1 meV reproduction noise and NEB convergence scatter).
+- [ ] **Same level of theory** — re-run / re-evaluate the new TS with
+      `--backend pyscf` (ωB97X/6-31G(d)). A MACE-only win is just MACE error and
+      does **not** count.
+- [ ] **Same reaction** — the new path connects the *same* relaxed reactant and
+      product, not a different pair. Verify the endpoints match.
+- [ ] **Genuine first-order saddle** — the new TS is a true saddle (one imaginary
+      vibrational mode), not a shoulder or higher-order point. (A MACE Hessian is
+      a cheap pre-check; DFT confirms.)
+- [ ] **Smooth path** — the converged energy profile is continuous, no kinks.
+
+If the DFT-confirmed barrier matches the dataset within noise → **reproduced, no
+flaw**. Record it and move on.
+
+## 5 — Record
+
+For each investigated reaction write a short note (reaction id, hypothesis,
+what was tried, dataset barrier vs your DFT-confirmed barrier, verdict). Keep
+the nulls too — they show coverage and stop re-investigating the same reaction.
+
+## Guardrails
+
+- DFT-to-DFT only for any claim. MACE is a scout, never the evidence.
+- A "lower barrier" that connects different endpoints is a different reaction,
+  not a flaw.
+- Reproducing their number is the expected outcome; treat a lower barrier as a
+  hypothesis to disprove, not a result to announce.
