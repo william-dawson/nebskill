@@ -60,12 +60,27 @@ may simply be more steps rather than a structural change.
 State your reasoning before running. Do not repeat an intervention that
 already failed.
 
-| Intervention | CLI flag |
-|---|---|
-| More images | `--n-images N` on nebskill-neb |
-| Different spring constant | `--spring-constant K` on nebskill-neb |
-| Switch to string method | `--method string` on nebskill-neb |
-| Re-relax endpoints tighter | `nebskill-relax --fmax 0.005`, then nebskill-neb |
+**Structural levers** (change the band itself):
+
+| Intervention | CLI flag | When |
+|---|---|---|
+| More images | `--n-images N` | bunching/collapse, or images too far apart |
+| Different spring constant | `--spring-constant K` | raise for collapse (images too close), lower if springs dominate |
+| Switch to string method | `--method string` | kinking / energy discontinuities (high `max_abs_d2`) |
+| Re-relax endpoints tighter | `nebskill-relax --fmax 0.005` then re-run | high force at endpoint images (`endpoint_force_ratio` > 2) |
+
+**Dynamical levers** (change how the optimizer moves) — reach for these when
+the band is not mis-set-up but won't settle:
+
+| Intervention | CLI flag | When |
+|---|---|---|
+| Smaller step size | `--max-step 0.05` | forces oscillate / don't decrease; band rings without converging |
+| Switch optimizer | `--optimizer BFGS` | FIRE stalling; BFGS with a small `--max-step` (e.g. 0.03) is what the dataset paper used |
+| More iterations | `--max-steps N` | `near_convergence` — already close to target and hit the step cap; just needs a larger budget, not a geometry change |
+
+Prefer a dynamical lever over a structural one when `steps_taken` is at the cap
+and `fmax_final` is already low (especially phase 2) — changing the geometry
+there throws away progress.
 
 ---
 
@@ -73,7 +88,8 @@ already failed.
 
 ```bash
 nebskill-neb --reaction-id INT \
-    [--n-images N] [--spring-constant K] [--method string]
+    [--n-images N] [--spring-constant K] [--method string] \
+    [--optimizer BFGS] [--max-step 0.05] [--max-steps N]
 ```
 
 For endpoint re-relaxation:

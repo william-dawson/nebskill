@@ -9,7 +9,6 @@ import numpy as np
 from ase import Atoms
 from ase.io import write as ase_write
 from ase.mep import NEB
-from ase.optimize import FIRE
 
 from nebskill.calculator import make_calculator
 from nebskill.config import load_config
@@ -60,10 +59,25 @@ def write_trajectory(images: list, traj_path: Path, append: bool = False) -> Non
         mode = "a"
 
 
+def make_optimizer(neb, optimizer: str, max_step):
+    """Build the band optimizer. `optimizer` is FIRE or BFGS; `max_step` is the
+    maximum displacement per step in Å (None = the optimizer's ASE default).
+    Smaller max_step stabilizes an oscillating band. BFGS uses ASE's default
+    alpha=70 (the Transition1x paper's value)."""
+    from ase.optimize import BFGS, FIRE
+    kwargs = {"logfile": None}
+    if max_step is not None:
+        kwargs["maxstep"] = float(max_step)
+    if str(optimizer).upper() == "BFGS":
+        return BFGS(neb, **kwargs)
+    return FIRE(neb, **kwargs)
+
+
 def run_phase(neb: NEB, images: list, fmax: float, max_steps: int,
-              phase: int, traj_path: Path, append_traj: bool) -> dict:
+              phase: int, traj_path: Path, append_traj: bool,
+              optimizer: str = "FIRE", max_step=None) -> dict:
     t0        = time.monotonic()
-    opt       = FIRE(neb, logfile=None)
+    opt       = make_optimizer(neb, optimizer, max_step)
 
     # Per-step progress trace. Written live (line-buffered + flush) so a long
     # run can be followed by tailing neb_progress.jsonl. The callback reads the
@@ -140,6 +154,13 @@ def main():
     parser.add_argument("--n-images",        type=int,   default=None)
     parser.add_argument("--method",          default=None)
     parser.add_argument("--spring-constant", type=float, default=None)
+    parser.add_argument("--optimizer", choices=["FIRE", "BFGS"], default=None,
+                        help="Band optimizer (default from config)")
+    parser.add_argument("--max-step", type=float, default=None,
+                        help="Max optimizer displacement per step, Å "
+                             "(lower stabilizes an oscillating band)")
+    parser.add_argument("--max-steps", type=int, default=None,
+                        help="Override the per-phase iteration cap for both phases")
     parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
                         help="Override calculator backend (default from config)")
     parser.add_argument("--local", action="store_true",
@@ -158,6 +179,9 @@ def main():
             if args.n_images:        extra += ["--n-images", str(args.n_images)]
             if args.method:          extra += ["--method", args.method]
             if args.spring_constant: extra += ["--spring-constant", str(args.spring_constant)]
+            if args.optimizer:       extra += ["--optimizer", args.optimizer]
+            if args.max_step:        extra += ["--max-step", str(args.max_step)]
+            if args.max_steps:       extra += ["--max-steps", str(args.max_steps)]
             if args.backend:         extra += ["--backend", args.backend]
             sys.exit(submit(remote, "nebskill.neb", args.reaction_id, out_dir,
                             send=["relaxed_endpoints.json", "endpoints.json"],
@@ -172,6 +196,14 @@ def main():
 
     if args.method:          neb_cfg["method"]          = args.method
     if args.spring_constant: neb_cfg["spring_constant"] = args.spring_constant
+    if args.optimizer:       neb_cfg["optimizer"]       = args.optimizer
+    if args.max_step:        neb_cfg["max_step"]        = args.max_step
+    if args.max_steps:
+        neb_cfg["phase1_max_steps"] = args.max_steps
+        neb_cfg["phase2_max_steps"] = args.max_steps
+
+    optimizer = neb_cfg.get("optimizer", "FIRE")
+    max_step  = neb_cfg.get("max_step")
 
     relaxed_path = out_dir / "relaxed_endpoints.json"
 
@@ -193,7 +225,8 @@ def main():
     k        = float(neb_cfg["spring_constant"])
 
     print(f"NEB for reaction {args.reaction_id} ({relaxed['formula']})")
-    print(f"  n_images={n_images}, method={method}, k={k} eV/Å")
+    print(f"  n_images={n_images}, method={method}, k={k} eV/Å, "
+          f"optimizer={optimizer}, max_step={max_step or 'default'}")
 
     images = build_images(reactant, product, n_images, calc)
     neb    = NEB(images, k=k, method=method, climb=False,
@@ -210,7 +243,8 @@ def main():
     result1 = run_phase(neb, images,
                         fmax=float(neb_cfg["phase1_fmax"]),
                         max_steps=int(neb_cfg["phase1_max_steps"]),
-                        phase=1, traj_path=traj_path, append_traj=False)
+                        phase=1, traj_path=traj_path, append_traj=False,
+                        optimizer=optimizer, max_step=max_step)
 
     if not result1["converged"]:
         _write_neb_result(out_dir, result1, n_images, method, k,
@@ -223,7 +257,8 @@ def main():
     result2 = run_phase(neb, images,
                         fmax=float(neb_cfg["phase2_fmax"]),
                         max_steps=int(neb_cfg["phase2_max_steps"]),
-                        phase=2, traj_path=traj_path, append_traj=True)
+                        phase=2, traj_path=traj_path, append_traj=True,
+                        optimizer=optimizer, max_step=max_step)
 
     _write_neb_result(out_dir, result2, n_images, method, k,
                       relaxed["dft_forward_barrier_ev"], phase1_result=result1)
