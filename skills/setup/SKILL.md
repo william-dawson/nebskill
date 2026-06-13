@@ -3,19 +3,19 @@ name: setup
 description: >
   First-time setup for nebskill on a new machine. Creates a project working
   directory with a uv environment, detects the GPU from inside an actual
-  compute node, installs all Python dependencies, and writes the
-  nebskill_remote.yaml and .mcp.json config files that the MCP server needs.
-  Run once before using any other nebskill skill.
+  compute node, installs all Python dependencies, and writes
+  nebskill_remote.yaml. Run once before using any other nebskill skill.
 allowed-tools: Bash Read Write
 ---
 
 ## Overview
 
-Setup generates two local config files (both gitignored):
+Setup generates one local config file (gitignored):
 - `nebskill_remote.yaml` — RemoteManager config (SLURM template, host, Python path)
-- `.mcp.json` — tells Claude Code how to start the nebskill MCP server
 
 After setup, all nebskill calculations run through the MCP server.
+The MCP server is registered by the plugin itself via `.mcp.json` — no
+manual configuration needed.
 
 ---
 
@@ -167,24 +167,6 @@ slurm_template: |
 
 ---
 
-## Step 8 — Write .mcp.json
-
-Write to `WORKING_DIR/.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "nebskill": {
-      "command": "PYTHON_PATH_FROM_STEP_6",
-      "args": ["-m", "nebskill.remote"],
-      "cwd": "WORKING_DIR"
-    }
-  }
-}
-```
-
----
-
 ## Done
 
 Report:
@@ -192,7 +174,7 @@ Report:
 - GPU detected and PyTorch variant installed
 - Python path captured
 - `nebskill_remote.yaml` written
-- `.mcp.json` written
 
-Tell the user to restart Claude Code (or reload plugins) so the MCP server
-starts and the nebskill tools become available.
+The MCP server (`uv run nebskill-mcp`) is registered by the plugin and starts
+automatically when Claude Code is run from the project directory. Tell the user
+to restart Claude Code so the nebskill tools become available.
