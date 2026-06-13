@@ -1,21 +1,30 @@
 ---
 name: setup
 description: >
-  First-time setup for nebskill on a new machine. Creates a project working
-  directory with a uv environment, detects the GPU from inside an actual
-  compute node, installs all Python dependencies, and writes
-  nebskill_remote.yaml. Run once before using any other nebskill skill.
+  First-time setup for nebskill on a new machine. Configures RemoteManager,
+  detects GPU specs from inside an actual compute node, installs all Python
+  dependencies via uv, and writes nebskill_remote.yaml. Run once before
+  using any other nebskill skill.
 allowed-tools: Bash Read Write
 ---
 
 ## Overview
 
-Setup generates one local config file (gitignored):
+Setup must happen in this exact order — each step depends on the previous:
+
+1. Working directory
+2. **Configure RemoteManager** — without this we cannot submit any jobs
+3. **Submit probe job** — only a real compute node knows its GPU specs
+4. Create `pyproject.toml`
+5. `uv sync` with the PyTorch variant the probe job revealed
+6. Capture Python path
+7. Write `nebskill_remote.yaml`
+
+One local config file is generated (gitignored):
 - `nebskill_remote.yaml` — RemoteManager config (SLURM template, host, Python path)
 
-After setup, all nebskill calculations run through the MCP server.
-The MCP server is registered by the plugin itself via `.mcp.json` — no
-manual configuration needed.
+The MCP server is registered by the plugin and starts automatically when
+Claude Code is run from the project directory.
 
 ---
 
@@ -24,13 +33,88 @@ manual configuration needed.
 Ask:
 > "Where would you like to run NEB calculations? (full path to a directory)"
 
-Create the directory if it doesn't exist. All subsequent steps run from there.
+Create the directory if it doesn't exist. All subsequent files are written here.
 
 ---
 
-## Step 2 — Create pyproject.toml
+## Step 2 — Configure RemoteManager
 
-Write this `pyproject.toml` in the working directory:
+This is the most important step. Ask the user for:
+
+- **Host**: hostname of the login node, or `localhost` if running directly
+  on the cluster head node (e.g. `login01.ai.r-ccs.riken.jp` or `localhost`)
+- **Submitter**: `sbatch` for SLURM, or `bash` to run directly without a scheduler
+- **Partition**: SLURM partition name (e.g. `1n1gpu`)
+- **Account**: SLURM account / project allocation code
+- **GPUs per node**: typically `1`
+- **Walltime**: job time limit (e.g. `02:00:00`)
+
+From these, construct the SLURM job template using RemoteManager's
+`#PARAMETER#` substitution syntax:
+
+```
+#!/bin/bash
+#SBATCH --partition=#PARTITION#
+#SBATCH --account=#ACCOUNT#
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=#GPUS:default=1#
+#SBATCH --time=#WALLTIME:default=02:00:00,format=time#
+#SBATCH --output=#JOBDIR#/slurm_%j.out
+#SBATCH --error=#JOBDIR#/slurm_%j.err
+
+#COMMAND#
+```
+
+Confirm the template and settings with the user before proceeding.
+
+---
+
+## Step 3 — Submit probe job to detect GPU
+
+GPU detection must happen from inside a real compute node — the login node
+may have different hardware or environment. Build a minimal probe jobscript
+using the settings from Step 2:
+
+```bash
+#!/bin/bash
+#SBATCH --partition=PARTITION
+#SBATCH --account=ACCOUNT
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=GPUS
+#SBATCH --time=00:05:00
+#SBATCH --output=/tmp/nebskill_probe_%j.out
+
+nvidia-smi 2>/dev/null || true
+rocm-smi --version 2>/dev/null || true
+xpu-smi discovery 2>/dev/null || true
+```
+
+Write to `/tmp/nebskill_probe.sh` and submit:
+```bash
+sbatch /tmp/nebskill_probe.sh
+```
+
+Wait for completion (`squeue -j JOBID` until no longer listed), then read
+`/tmp/nebskill_probe_JOBID.out`.
+
+If submitter is `bash`, run the probe directly and read stdout.
+
+Interpret output:
+- `nvidia-smi` succeeded → NVIDIA, extract CUDA version (top-right corner)
+  → PyTorch index suffix `cu{MAJOR}{MINOR}` (e.g. CUDA 13.2 → `cu132`)
+- `rocm-smi` succeeded → AMD ROCm, extract version
+  → suffix `rocm{MAJOR}.{MINOR}` (e.g. ROCm 6.1 → `rocm6.1`)
+- `xpu-smi` succeeded → Intel XPU — warn user that Intel XPU requires
+  `intel-extension-for-pytorch` and ask how to proceed
+- Nothing detected → CPU only
+
+Show the user what was found before continuing.
+
+---
+
+## Step 4 — Create pyproject.toml
+
+Write to `WORKING_DIR/pyproject.toml`:
 
 ```toml
 [project]
@@ -43,88 +127,31 @@ dependencies = [
 
 ---
 
-## Step 3 — Collect SLURM settings
-
-Ask the user for:
-- **Host**: login node hostname, or `localhost` if running directly on the cluster
-  (e.g. `login01.ai.r-ccs.riken.jp` or `localhost`)
-- **Submitter**: `sbatch` (SLURM) or `bash` (run directly, no scheduler)
-- **Partition**: SLURM partition name (e.g. `1n1gpu`)
-- **Account**: SLURM account/project code (e.g. `ra123456`)
-- **GPUs per node**: typically `1`
-- **Walltime**: job time limit (e.g. `02:00:00`)
-
----
-
-## Step 4 — Detect GPU from inside a compute node
-
-GPU detection must happen from within the real compute environment, not the
-login node. Build a minimal probe jobscript using the settings from Step 3:
-
-```bash
-#!/bin/bash
-#SBATCH --partition=PARTITION
-#SBATCH --account=ACCOUNT
-#SBATCH --nodes=1
-#SBATCH --gpus-per-node=GPUS
-#SBATCH --time=00:05:00
-#SBATCH --output=/tmp/nebskill_probe_%j.out
-
-nvidia-smi 2>/dev/null || true
-rocm-smi 2>/dev/null || true
-xpu-smi discovery 2>/dev/null || true
-```
-
-Write this to `/tmp/nebskill_probe.sh` and submit:
-
-```bash
-sbatch /tmp/nebskill_probe.sh
-```
-
-Wait for the job to complete (`squeue -j JOBID` until no longer listed), then
-read the output file at `/tmp/nebskill_probe_JOBID.out`.
-
-If submitter is `bash` (no scheduler), run the probe directly and read stdout.
-
-Interpret the output:
-- `nvidia-smi` succeeded → NVIDIA GPU, extract CUDA version (top-right corner)
-  → suffix `cu{MAJOR}{MINOR}` (e.g. CUDA 13.2 → `cu132`)
-- `rocm-smi` succeeded → AMD ROCm, extract version → suffix `rocm{MAJOR}.{MINOR}`
-- `xpu-smi` succeeded → Intel XPU (see note below)
-- Nothing → CPU only
-
-**Intel XPU note**: Intel GPU support requires `intel-extension-for-pytorch`
-which is not on the standard PyTorch index. Tell the user and ask how to proceed.
-
----
-
 ## Step 5 — Install with uv sync
 
-Construct the `uv sync` command from the detected GPU:
+Construct the install command from the probe job result:
 
 **NVIDIA** — verify the index URL first:
 ```bash
 curl -sI https://download.pytorch.org/whl/cu{VERSION}/ | head -1
 ```
 If not `200`/`301`: check https://download.pytorch.org/whl/ for the nearest
-version and tell the user before proceeding.
-
+available version and tell the user before proceeding.
 ```bash
-cd WORKING_DIR
-uv sync --index https://download.pytorch.org/whl/cu{VERSION}
+cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/cu{VERSION}
 ```
 
 **AMD ROCm:**
 ```bash
-uv sync --index https://download.pytorch.org/whl/rocm{VERSION}
+cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/rocm{VERSION}
 ```
 
 **CPU only:**
 ```bash
-uv sync
+cd WORKING_DIR && uv sync
 ```
 
-Show output so the user can see progress (~1–2 GB first time).
+This may take several minutes on first run (~1–2 GB). Show output.
 
 ---
 
@@ -146,12 +173,12 @@ Write to `WORKING_DIR/nebskill_remote.yaml`:
 ```yaml
 # Generated by /nebskill:setup — do not edit manually
 python: PYTHON_PATH_FROM_STEP_6
-host: HOST_FROM_STEP_3
-submitter: SUBMITTER_FROM_STEP_3
-partition: PARTITION_FROM_STEP_3
-account: ACCOUNT_FROM_STEP_3
-gpus: GPUS_FROM_STEP_3
-walltime: WALLTIME_FROM_STEP_3
+host: HOST_FROM_STEP_2
+submitter: SUBMITTER_FROM_STEP_2
+partition: PARTITION_FROM_STEP_2
+account: ACCOUNT_FROM_STEP_2
+gpus: GPUS_FROM_STEP_2
+walltime: WALLTIME_FROM_STEP_2
 slurm_template: |
   #!/bin/bash
   #SBATCH --partition=#PARTITION#
@@ -171,10 +198,9 @@ slurm_template: |
 
 Report:
 - Working directory
-- GPU detected and PyTorch variant installed
-- Python path captured
+- RemoteManager configured (host, partition, account)
+- GPU detected: vendor, version, PyTorch index used
 - `nebskill_remote.yaml` written
 
-The MCP server (`uv run nebskill-mcp`) is registered by the plugin and starts
-automatically when Claude Code is run from the project directory. Tell the user
-to restart Claude Code so the nebskill tools become available.
+Tell the user to run Claude Code from `WORKING_DIR` so the MCP server
+starts with the correct environment.
