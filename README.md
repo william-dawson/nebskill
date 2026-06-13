@@ -27,9 +27,9 @@ Just ask Claude in plain language, for example:
 The skill activates automatically. You can also ask about reaction barriers,
 transition states, or minimum energy paths, or invoke a step directly.
 
-To reproduce the dataset's DFT barriers (or look for lower ones) with PySCF
-instead of MACE, ask to reproduce a reaction, or pass `--backend pyscf` to the
-relax/neb steps. See `/nebskill:reproducing-dataset`.
+The calculator backend (MACE or PySCF/DFT) is chosen during setup. With the
+PySCF backend you can ask Claude to reproduce the dataset's barriers or hunt
+for reactions where NEB finds a lower barrier than the published value.
 
 ## Requirements
 
