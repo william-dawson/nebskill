@@ -37,6 +37,27 @@ def build_images(reactant: Atoms, product: Atoms, n_images: int, calc) -> list:
     return images
 
 
+def load_band(path: str, n_images: int, reactant: Atoms, product: Atoms, calc) -> list:
+    """Build the initial band from a seed trajectory (e.g. a MACE-converged path)
+    instead of interpolating. Takes the last `n_images` frames — so a prior
+    neb_trajectory.xyz (which concatenates each phase's band) yields the final
+    converged band. The endpoints are overwritten with the relaxed reactant and
+    product so the fixed images are true minima at the current level of theory."""
+    from ase.io import read
+    seed = read(path, index=":")
+    if len(seed) < n_images:
+        print(f"ERROR: initial path {path} has {len(seed)} frames, "
+              f"need at least {n_images}", file=sys.stderr)
+        sys.exit(1)
+    band = seed[-n_images:]
+    images = [a.copy() for a in band]
+    images[0].set_positions(reactant.get_positions())
+    images[-1].set_positions(product.get_positions())
+    for img in images:
+        img.calc = calc
+    return images
+
+
 def neb_fmax_per_image(neb: NEB, images: list) -> list[float]:
     n_internal = len(images) - 2
     n_atoms    = len(images[0])
@@ -184,6 +205,10 @@ def main():
                              "(lower stabilizes an oscillating band)")
     parser.add_argument("--max-steps", type=int, default=None,
                         help="Override the per-phase iteration cap for both phases")
+    parser.add_argument("--initial-path", default=None,
+                        help="Seed the band from a trajectory file (e.g. a "
+                             "MACE-converged neb_trajectory.xyz) instead of "
+                             "interpolating; uses its last n_images frames")
     parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
                         help="Override calculator backend (default from config)")
     parser.add_argument("--local", action="store_true",
@@ -206,8 +231,14 @@ def main():
             if args.max_step:        extra += ["--max-step", str(args.max_step)]
             if args.max_steps:       extra += ["--max-steps", str(args.max_steps)]
             if args.backend:         extra += ["--backend", args.backend]
+            send = ["relaxed_endpoints.json", "endpoints.json"]
+            if args.initial_path:
+                # stage the seed file into the job dir; worker reads it by name
+                seed = Path(args.initial_path).resolve()
+                send.append(str(seed))
+                extra += ["--initial-path", seed.name]
             sys.exit(submit(remote, "nebskill.neb", args.reaction_id, out_dir,
-                            send=["relaxed_endpoints.json", "endpoints.json"],
+                            send=send,
                             recv=["neb_result.json", "neb_trajectory.xyz",
                                   "neb_progress.jsonl"],
                             extra_args=extra))
@@ -251,14 +282,22 @@ def main():
     print(f"  n_images={n_images}, method={method}, k={k} eV/Å, "
           f"optimizer={optimizer}, max_step={max_step or 'default'}")
 
-    images = build_images(reactant, product, n_images, calc)
-    neb    = NEB(images, k=k, method=method, climb=False,
-                 allow_shared_calculator=True,
-                 remove_rotation_and_translation=bool(
-                     neb_cfg["remove_rotation_translation"]))
+    if args.initial_path:
+        images = load_band(args.initial_path, n_images, reactant, product, calc)
+    else:
+        images = build_images(reactant, product, n_images, calc)
 
-    print("  Running IDPP interpolation...")
-    neb.interpolate("idpp")
+    neb = NEB(images, k=k, method=method, climb=False,
+              allow_shared_calculator=True,
+              remove_rotation_and_translation=bool(
+                  neb_cfg["remove_rotation_translation"]))
+
+    if args.initial_path:
+        print(f"  Seeded initial band from {args.initial_path} "
+              f"({n_images} images) — skipping interpolation")
+    else:
+        print("  Running IDPP interpolation...")
+        neb.interpolate("idpp")
 
     traj_path = out_dir / "neb_trajectory.xyz"
 

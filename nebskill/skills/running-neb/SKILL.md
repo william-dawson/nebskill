@@ -22,8 +22,15 @@ Override parameters (used by `/nebskill:monitoring-convergence` on retry):
 ```bash
 nebskill-neb --reaction-id INT \
     [--n-images N] [--spring-constant K] [--method string] \
-    [--optimizer FIRE|BFGS|ODE] [--max-step 0.05] [--max-steps N]
+    [--optimizer FIRE|BFGS|ODE] [--max-step 0.05] [--max-steps N] \
+    [--initial-path traj.xyz]
 ```
+
+`--initial-path` seeds the band from an existing trajectory (e.g. a
+MACE-converged `neb_trajectory.xyz`) instead of interpolating reactant→product —
+a warm start that drops the run into a path already found. It uses the file's
+last `n_images` frames; the endpoints are replaced with the relaxed reactant and
+product.
 
 ## Watch progress live
 

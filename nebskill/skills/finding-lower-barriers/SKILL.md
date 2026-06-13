@@ -65,8 +65,11 @@ Use every lever in `/nebskill:monitoring-convergence`, harder than the dataset
 did. Productive moves for *finding a lower path* (not just converging one):
 - **More images** — resolve a corner the 10-image path cut.
 - **ODE optimizer** (`--optimizer ODE`) — best at localizing a tricky saddle.
-- **Different interpolation / endpoints** — if you have an intermediate guess
-  (e.g. from the MACE path or a hypothesized stepwise mechanism), seed it.
+- **Warm-start from the MACE path** — `--initial-path <traj.xyz>` seeds the band
+  from a previous (e.g. MACE-converged) `neb_trajectory.xyz` instead of
+  interpolating, so the expensive DFT run starts in the lower basin MACE found.
+  This is the core triage→confirm move: scout cheaply with MACE, then confirm
+  the lower path with DFT from that guess.
 - **Vary the spring constant both ways** — softer springs let the band follow a
   curved valley a stiff band straightened over.
 - **Multiple attempts** from perturbed starting paths — a lower saddle in a

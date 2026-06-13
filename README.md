@@ -53,8 +53,7 @@ The skills run in pipeline order:
 - **`/nebskill:finding-lower-barriers`** — a research skill to hunt for
   reactions whose published transition state may not be the lowest, by triaging
   candidates cheaply with MACE and confirming lower saddles at the dataset's DFT
-  level. Still being developed (needs saddle-point verification and
-  intermediate seeding).
+  level. Still being developed (needs saddle-point / frequency verification).
 
 ## Requirements
 
