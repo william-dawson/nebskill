@@ -1,7 +1,7 @@
 ---
 name: configuring-machine
 description: >
-  Configures RemoteManager for this machine, detects GPU specs from inside a
+  Configures RemoteManager for this machine, detects available accelerators from inside a
   real compute node via a probe job, installs Python dependencies with uv, and
   writes nebskill_remote.yaml. Use once on each new machine before running any
   NEB calculations, or when the user asks how to set up nebskill.
@@ -15,7 +15,7 @@ Each step depends on the previous.
 
 - [ ] 1. Working directory
 - [ ] 2. RemoteManager configuration (from real jobscript)
-- [ ] 3. Probe compute node for GPU specs
+- [ ] 3. Probe compute node for accelerators
 - [ ] 4. Create project pyproject.toml
 - [ ] 5. Install dependencies with uv sync
 - [ ] 6. Capture Python path
@@ -52,7 +52,7 @@ From the jobscript and these outputs, determine:
 - `host`: `localhost` if already on the cluster head node, otherwise the login
   node hostname the user SSHs to
 - `submitter`: `sbatch` or `bash`
-- `partition`, `account`, `gpus`, `walltime`: from the jobscript
+- `partition`, `account`, `walltime`, and any accelerator directives: from the jobscript
 
 Present a summary back to the user and ask them to confirm or correct each
 value before continuing. Do not proceed until confirmed.
@@ -62,7 +62,6 @@ with `#PARAMETER#` placeholders:
 ```
 partition: 1n1gpu  →  #PARTITION#
 account: ra123    →  #ACCOUNT#
---gpus-per-node=1 →  #GPUS:default=1#
 --time=02:00:00   →  #WALLTIME:default=02:00:00,format=time#
 ```
 
@@ -71,11 +70,11 @@ RemoteManager injects the Python invocation.
 
 ---
 
-## 3 — Probe compute node for GPU specs
+## 3 — Probe compute node for accelerators
 
 Use RemoteManager directly to submit the probe — do not write a manual
 jobscript. Build a minimal `Computer` from the settings confirmed in step 2
-and submit a function that runs GPU detection:
+and submit a function that detects available accelerators:
 
 ```python
 from remotemanager import Computer, Dataset
@@ -88,8 +87,9 @@ url = Computer(
 )
 url.partition = partition
 url.account   = account
-url.gpus      = gpus
 url.walltime  = "00:05:00"    # short probe job
+# only set if user's jobscript had GPU directives:
+# url.gpus = gpus
 
 def detect_gpu():
     import subprocess
@@ -188,7 +188,7 @@ host: HOST
 submitter: SUBMITTER
 partition: PARTITION
 account: ACCOUNT
-gpus: GPUS
+gpus: GPUS_IF_APPLICABLE  # omit if running on CPU
 walltime: WALLTIME
 slurm_template: |
   TEMPLATE_FROM_STEP_2
