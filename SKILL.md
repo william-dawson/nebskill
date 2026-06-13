@@ -105,20 +105,25 @@ as a CLI flag to the relevant script. Do not modify the yaml files.
 Execute each step in order. Read the step's INSTRUCTIONS.md before running it,
 then report a brief summary of what happened before moving to the next.
 
-1. **Load reaction** — invoke `/nebskill:load`
+1. **Load reaction** — call MCP tool `load_reaction(reaction_id=INT)`
+   - See `/nebskill:load` for output schema
    - Report: formula, number of atoms, DFT barrier from Transition1x
 
-2. **Relax endpoints** — invoke `/nebskill:relax`
+2. **Relax endpoints** — call MCP tool `relax_endpoints(reaction_id=INT)`
+   - See `/nebskill:relax` for details — submits a SLURM GPU job
    - Report: converged fmax for reactant and product, optimizer used
 
-3. **Run NEB** — invoke `/nebskill:neb`
+3. **Run NEB** — call MCP tool `run_neb(reaction_id=INT)`
+   - See `/nebskill:neb` for details — submits a SLURM GPU job
    - Report: whether phase 1 and phase 2 converged, final fmax, steps taken
 
-4. **Monitor & retry if needed** — invoke `/nebskill:monitor`
-   - Only if step 3 exited with code 4
+4. **Monitor & retry if needed** — call MCP tool `compute_diagnostics`, then
+   reason and call `run_neb` again with adjusted parameters
+   - See `/nebskill:monitor` — only if run_neb returned returncode=4
    - Report: diagnosed failure mode, intervention chosen, outcome
 
-5. **Analyze & report** — invoke `/nebskill:analyze`
+5. **Analyze & report** — call MCP tool `analyze_results(reaction_id=INT)`
+   - See `/nebskill:analyze` — runs on login node
    - Report: forward and reverse barriers in eV and kcal/mol, MACE-OFF vs DFT
      error, location of the transition state image
 

@@ -1,6 +1,6 @@
 [project]
 name = "nebskill"
-version = "0.2.0"
+version = "0.3.0"
 description = "Nudged Elastic Band calculations for reaction barriers using MACE-OFF and Transition1x"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -13,6 +13,8 @@ dependencies = [
     "pyyaml>=6.0",
     "matplotlib>=3.8",
     "numpy>=1.26",
+    "remotemanager>=0.9",
+    "mcp>=1.0",
 ]
 
 [project.scripts]
@@ -24,6 +26,7 @@ nebskill-diagnose = "nebskill.diagnostics:main"
 nebskill-analyze  = "nebskill.analyze:main"
 nebskill-plot     = "nebskill.plot:main"
 nebskill-writer   = "nebskill.writer:main"
+nebskill-mcp      = "nebskill.remote:main"
 
 [build-system]
 requires = ["hatchling"]

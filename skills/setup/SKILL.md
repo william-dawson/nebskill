@@ -1,178 +1,198 @@
 ---
 name: setup
 description: >
-  First-time setup for nebskill on a new machine. Detects the Python
-  environment and GPU vendor, determines the correct install strategy,
-  confirms with the user, then installs once. Run before any other
-  nebskill skill.
+  First-time setup for nebskill on a new machine. Creates a project working
+  directory with a uv environment, detects the GPU from inside an actual
+  compute node, installs all Python dependencies, and writes the
+  nebskill_remote.yaml and .mcp.json config files that the MCP server needs.
+  Run once before using any other nebskill skill.
 allowed-tools: Bash Read Write
 ---
 
-## What this skill does
+## Overview
 
-1. Check whether a usable PyTorch is already present
-2. If not, detect the GPU vendor and version
-3. Present findings and proposed install command to the user
-4. Install only after explicit confirmation
+Setup generates two local config files (both gitignored):
+- `nebskill_remote.yaml` — RemoteManager config (SLURM template, host, Python path)
+- `.mcp.json` — tells Claude Code how to start the nebskill MCP server
 
-Never install silently. Never retry after a failure. Show the user exactly
-what will happen before it happens.
+After setup, all nebskill calculations run through the MCP server.
 
 ---
 
-## Step 1 — Check for existing PyTorch
+## Step 1 — Working directory
 
-```bash
-python3 -c "import torch; print('version:', torch.__version__); print('cuda:', torch.cuda.is_available()); print('device:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')"
-```
+Ask:
+> "Where would you like to run NEB calculations? (full path to a directory)"
 
-**If torch imports and GPU is available:**
-Report what was found (version, device name). Ask:
-> "PyTorch is already installed and GPU is available. Install nebskill into
-> this environment?"
-
-If yes → skip to [Step 3 — Install into existing environment](#step-3a).
-If no → continue to Step 2 to set up a fresh environment.
-
-**If torch imports but GPU is not available (`cuda: False`):**
-Ask the user:
-> "PyTorch is installed but no GPU was detected. This may mean no GPU is
-> present, or a GPU module hasn't been loaded yet. Would you like to load
-> a GPU module before continuing, or proceed with CPU-only?"
-
-Wait for their answer before continuing.
-
-**If torch is not importable:**
-Continue to Step 2.
+Create the directory if it doesn't exist. All subsequent steps run from there.
 
 ---
 
-## Step 2 — Detect GPU vendor
+## Step 2 — Create pyproject.toml
 
-Run all three detection commands and collect the results:
+Write this `pyproject.toml` in the working directory:
 
-```bash
-nvidia-smi 2>/dev/null | head -4
+```toml
+[project]
+name = "neb-project"
+requires-python = ">=3.12"
+dependencies = [
+    "nebskill @ git+https://github.com/william-dawson/nebskill.git"
+]
 ```
-```bash
-rocm-smi 2>/dev/null | head -4
-```
-```bash
-xpu-smi discovery 2>/dev/null | head -10
-```
-
-Read all three outputs. Then determine:
-
-**NVIDIA detected** (`nvidia-smi` succeeded):
-Extract the CUDA version from the top-right of `nvidia-smi` output
-(e.g. `CUDA Version: 13.2` → suffix `cu132`).
-
-**AMD detected** (`rocm-smi` succeeded):
-Extract the ROCm version:
-```bash
-rocm-smi --version 2>/dev/null
-```
-Format as `rocm{MAJOR}.{MINOR}` (e.g. ROCm 6.1 → `rocm6.1`).
-
-**Intel XPU detected** (`xpu-smi` succeeded):
-Note: Intel GPUs require `intel-extension-for-pytorch` rather than a
-standard PyTorch wheel index. Flag this for Step 3.
-
-**Nothing detected:**
-CPU-only install.
-
-**If more than one vendor is detected**, list all findings and ask the user
-which GPU to target before continuing.
 
 ---
 
-## Step 3a — Install into existing environment {#step-3a}
+## Step 3 — Collect SLURM settings
 
-Use this path when torch is already present and the user confirmed.
-
-```bash
-pip install git+https://github.com/william-dawson/nebskill.git
-```
-
-This installs nebskill and its non-torch dependencies alongside the existing
-PyTorch without replacing it.
+Ask the user for:
+- **Host**: login node hostname, or `localhost` if running directly on the cluster
+  (e.g. `login01.ai.r-ccs.riken.jp` or `localhost`)
+- **Submitter**: `sbatch` (SLURM) or `bash` (run directly, no scheduler)
+- **Partition**: SLURM partition name (e.g. `1n1gpu`)
+- **Account**: SLURM account/project code (e.g. `ra123456`)
+- **GPUs per node**: typically `1`
+- **Walltime**: job time limit (e.g. `02:00:00`)
 
 ---
 
-## Step 3b — Fresh install with uv tool
+## Step 4 — Detect GPU from inside a compute node
 
-Use this path when no usable torch was found.
+GPU detection must happen from within the real compute environment, not the
+login node. Build a minimal probe jobscript using the settings from Step 3:
 
-Construct the install command based on what was detected in Step 2:
+```bash
+#!/bin/bash
+#SBATCH --partition=PARTITION
+#SBATCH --account=ACCOUNT
+#SBATCH --nodes=1
+#SBATCH --gpus-per-node=GPUS
+#SBATCH --time=00:05:00
+#SBATCH --output=/tmp/nebskill_probe_%j.out
 
-**NVIDIA:**
-First verify the index URL exists:
+nvidia-smi 2>/dev/null || true
+rocm-smi 2>/dev/null || true
+xpu-smi discovery 2>/dev/null || true
+```
+
+Write this to `/tmp/nebskill_probe.sh` and submit:
+
+```bash
+sbatch /tmp/nebskill_probe.sh
+```
+
+Wait for the job to complete (`squeue -j JOBID` until no longer listed), then
+read the output file at `/tmp/nebskill_probe_JOBID.out`.
+
+If submitter is `bash` (no scheduler), run the probe directly and read stdout.
+
+Interpret the output:
+- `nvidia-smi` succeeded → NVIDIA GPU, extract CUDA version (top-right corner)
+  → suffix `cu{MAJOR}{MINOR}` (e.g. CUDA 13.2 → `cu132`)
+- `rocm-smi` succeeded → AMD ROCm, extract version → suffix `rocm{MAJOR}.{MINOR}`
+- `xpu-smi` succeeded → Intel XPU (see note below)
+- Nothing → CPU only
+
+**Intel XPU note**: Intel GPU support requires `intel-extension-for-pytorch`
+which is not on the standard PyTorch index. Tell the user and ask how to proceed.
+
+---
+
+## Step 5 — Install with uv sync
+
+Construct the `uv sync` command from the detected GPU:
+
+**NVIDIA** — verify the index URL first:
 ```bash
 curl -sI https://download.pytorch.org/whl/cu{VERSION}/ | head -1
 ```
 If not `200`/`301`: check https://download.pytorch.org/whl/ for the nearest
-available CUDA version and tell the user which one will be used and why.
+version and tell the user before proceeding.
 
 ```bash
-uv tool install git+https://github.com/william-dawson/nebskill.git \
-    --index https://download.pytorch.org/whl/cu{VERSION}
+cd WORKING_DIR
+uv sync --index https://download.pytorch.org/whl/cu{VERSION}
 ```
 
 **AMD ROCm:**
 ```bash
-uv tool install git+https://github.com/william-dawson/nebskill.git \
-    --index https://download.pytorch.org/whl/rocm{VERSION}
+uv sync --index https://download.pytorch.org/whl/rocm{VERSION}
 ```
-
-**Intel XPU:**
-```bash
-uv tool install git+https://github.com/william-dawson/nebskill.git
-pip install intel-extension-for-pytorch
-```
-Warn the user that Intel XPU support depends on the version of
-`intel-extension-for-pytorch` matching their oneAPI toolkit.
 
 **CPU only:**
 ```bash
-uv tool install git+https://github.com/william-dawson/nebskill.git
+uv sync
 ```
-Warn the user that MACE-OFF on CPU is functional but significantly slower
-than GPU — a single NEB calculation may take hours instead of minutes.
+
+Show output so the user can see progress (~1–2 GB first time).
 
 ---
 
-## Before running any install
+## Step 6 — Capture Python path
 
-Present a summary to the user:
+```bash
+cd WORKING_DIR && uv run python -c "import sys; print(sys.executable)"
+```
 
-> **Detected:** [what was found — GPU vendor, version, existing torch or not]
-> **Install strategy:** [which path above]
-> **Command:** [exact command that will run]
->
-> Shall I proceed?
-
-Only run the install after the user confirms.
+This returns the absolute path to the venv Python, e.g.:
+`/home/user/my-neb-project/.venv/bin/python3`
 
 ---
 
-## Step 4 — Verify
+## Step 7 — Write nebskill_remote.yaml
 
-```bash
-nebskill-load --help
+Write to `WORKING_DIR/nebskill_remote.yaml`:
+
+```yaml
+# Generated by /nebskill:setup — do not edit manually
+python: PYTHON_PATH_FROM_STEP_6
+host: HOST_FROM_STEP_3
+submitter: SUBMITTER_FROM_STEP_3
+partition: PARTITION_FROM_STEP_3
+account: ACCOUNT_FROM_STEP_3
+gpus: GPUS_FROM_STEP_3
+walltime: WALLTIME_FROM_STEP_3
+slurm_template: |
+  #!/bin/bash
+  #SBATCH --partition=#PARTITION#
+  #SBATCH --account=#ACCOUNT#
+  #SBATCH --nodes=1
+  #SBATCH --gpus-per-node=#GPUS:default=1#
+  #SBATCH --time=#WALLTIME:default=02:00:00,format=time#
+  #SBATCH --output=#JOBDIR#/slurm_%j.out
+  #SBATCH --error=#JOBDIR#/slurm_%j.err
+
+  #COMMAND#
 ```
 
-If the command is found, installation succeeded. If not found (Step 3a path
-installs as a library, not a tool), check:
+---
 
-```bash
-python3 -c "import nebskill; print('ok')"
+## Step 8 — Write .mcp.json
+
+Write to `WORKING_DIR/.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "nebskill": {
+      "command": "PYTHON_PATH_FROM_STEP_6",
+      "args": ["-m", "nebskill.remote"],
+      "cwd": "WORKING_DIR"
+    }
+  }
+}
 ```
 
-If PATH is the issue with `uv tool install`:
-```bash
-export PATH="$HOME/.local/bin:$PATH"
-```
-Ask the user to add this to their shell profile.
+---
 
-Report what was installed and remind the user they can now run NEB
-calculations.
+## Done
+
+Report:
+- Working directory
+- GPU detected and PyTorch variant installed
+- Python path captured
+- `nebskill_remote.yaml` written
+- `.mcp.json` written
+
+Tell the user to restart Claude Code (or reload plugins) so the MCP server
+starts and the nebskill tools become available.

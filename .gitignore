@@ -1,4 +1,6 @@
 neb_local.yaml
+nebskill_remote.yaml
+.mcp.json
 outputs/
 data/
 queue.json
