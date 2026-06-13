@@ -1,8 +1,8 @@
 ---
 name: configuring-machine
 description: >
-  Configures RemoteManager for this machine, detects available accelerators
-  from inside a compute node, installs the nebskill Python package with uv
+  Configures RemoteManager for this machine, determines the right PyTorch
+  build (CUDA / ROCm / CPU), installs the nebskill Python package with uv
   (locally and, if the cluster is remote, on the cluster too), and writes
   nebskill_remote.yaml. Use once on each new machine before running any NEB
   calculations, or when the user asks how to set up nebskill.
@@ -15,7 +15,7 @@ Work through each item in order. Tick off each one before moving to the next.
 
 - [ ] 1. Working directory
 - [ ] 2. RemoteManager configuration (from a real jobscript)
-- [ ] 3. Probe a compute node for accelerators
+- [ ] 3. Determine the PyTorch variant for this machine
 - [ ] 4. Install nebskill with uv (local, and remote if the cluster is remote)
 - [ ] 5. Capture the compute Python path
 - [ ] 6. Write nebskill_remote.yaml
@@ -64,38 +64,34 @@ introduce any other `#PARAMETER#` placeholders.
 
 ---
 
-## 3 — Probe a compute node for accelerators
+## 3 — Determine the PyTorch variant for this machine
 
-Submit a short probe via RemoteManager using system `python3` (no install
-needed yet) to see what the compute node actually has:
+Ask the user directly — do not probe with a job (that would force a build
+before anything is installed). Use the jobscript from step 2 as a hint: if it
+had accelerator directives (`--gpus-per-node`, a GPU partition, `module load
+cuda/rocm`), this is likely a GPU machine; otherwise CPU is the default.
 
-```python
-from remotemanager import Computer, Dataset
+Ask:
+> "What PyTorch build does this machine need?
+>   - **NVIDIA GPU** → I need the CUDA version
+>   - **AMD GPU** → I need the ROCm version
+>   - **No GPU / not sure** → CPU is fine (MACE-OFF runs on CPU, just slower)"
 
-url = Computer(template=slurm_template, host=host, submitter=submitter,
-               python="python3")
+If the user has a GPU but doesn't know the version, explain how to check —
+this must be done on a node that has the GPU:
 
-def detect_accelerator():
-    import subprocess
-    out = {}
-    for cmd in [["nvidia-smi"], ["rocm-smi", "--version"], ["xpu-smi", "discovery"]]:
-        r = subprocess.run(cmd, capture_output=True, text=True)
-        out[cmd[0]] = r.stdout if r.returncode == 0 else None
-    return out
+- **NVIDIA**: run `nvidia-smi` (in an interactive job if the login node has no
+  GPU, e.g. `srun --partition=PART --gpus=1 --time=00:05:00 --pty nvidia-smi`).
+  The CUDA version is in the top-right of the output.
+- **AMD**: run `rocm-smi --version`, or check the loaded ROCm module
+  (`module list` / `module avail rocm`).
 
-ds = Dataset(detect_accelerator, url=url)
-ds.append_run({})
-ds.run(); ds.wait(); ds.fetch_results()
-result = ds.results[0]
-```
+Map the answer to a PyTorch index:
+- CUDA 13.2 → `cu132` → `--index https://download.pytorch.org/whl/cu132`
+- ROCm 6.1 → `rocm6.1` → `--index https://download.pytorch.org/whl/rocm6.1`
+- CPU → no `--index` flag
 
-Interpret `result`:
-- `nvidia-smi` → NVIDIA; read CUDA version → index `cu{MAJOR}{MINOR}` (CUDA 13.2 → `cu132`)
-- `rocm-smi` → AMD ROCm → index `rocm{MAJOR}.{MINOR}`
-- `xpu-smi` → Intel XPU; warn `intel-extension-for-pytorch` is needed separately
-- nothing → CPU only
-
-Show the user what was found and confirm before installing.
+Confirm the choice with the user before installing.
 
 ---
 
