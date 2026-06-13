@@ -64,7 +64,30 @@ def run_phase(neb: NEB, images: list, fmax: float, max_steps: int,
               phase: int, traj_path: Path, append_traj: bool) -> dict:
     t0        = time.monotonic()
     opt       = FIRE(neb, logfile=None)
-    converged = opt.run(fmax=fmax, steps=max_steps)
+
+    # Per-step progress trace. Written live (line-buffered + flush) so a long
+    # run can be followed by tailing neb_progress.jsonl. The callback reads the
+    # NEB's cached residual force — get_residual() does NOT trigger a recompute,
+    # so this adds no force/DFT evaluations.
+    progress_path = traj_path.parent / "neb_progress.jsonl"
+    progress_fh = open(progress_path, "a" if append_traj else "w", buffering=1)
+
+    def _log_progress():
+        try:
+            residual = float(neb.get_residual())
+        except Exception:
+            residual = None
+        rec = {"phase": phase, "step": opt.nsteps,
+               "fmax": residual, "fmax_target": fmax,
+               "elapsed_s": round(time.monotonic() - t0, 1)}
+        progress_fh.write(json.dumps(rec) + "\n")
+        progress_fh.flush()
+
+    opt.attach(_log_progress, interval=1)
+    try:
+        converged = opt.run(fmax=fmax, steps=max_steps)
+    finally:
+        progress_fh.close()
     steps_taken = opt.get_number_of_steps()
     elapsed   = time.monotonic() - t0
 
@@ -138,7 +161,8 @@ def main():
             if args.backend:         extra += ["--backend", args.backend]
             sys.exit(submit(remote, "nebskill.neb", args.reaction_id, out_dir,
                             send=["relaxed_endpoints.json", "endpoints.json"],
-                            recv=["neb_result.json", "neb_trajectory.xyz"],
+                            recv=["neb_result.json", "neb_trajectory.xyz",
+                                  "neb_progress.jsonl"],
                             extra_args=extra))
 
     cfg     = load_config(args.config)
