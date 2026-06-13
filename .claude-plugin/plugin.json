@@ -1,7 +1,7 @@
 {
   "name": "nebskill",
   "description": "Nudged Elastic Band calculations for reaction barriers on organic molecules using MACE-OFF23 and the Transition1x dataset. Requires uv; Python dependencies installed automatically via /nebskill:setup.",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "author": {
     "name": "william-dawson"
   },
