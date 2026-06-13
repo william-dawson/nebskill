@@ -189,10 +189,12 @@ submitter: SUBMITTER
 project_dir: WORKING_DIR   # local; where outputs are collected
 slurm_template: |
   #!/bin/bash
-  #SBATCH --partition=1n1gpu          # hardcoded from user's jobscript
-  #SBATCH --account=ra123456          # hardcoded
+  #SBATCH --partition=PARTITION       # hardcoded from user's jobscript
+  #SBATCH --account=ACCOUNT           # hardcoded
   #SBATCH --nodes=1                   # hardcoded
   #SBATCH --time=02:00:00             # hardcoded
+  # any accelerator directives (--gpus-per-node etc.) only if the user's
+  # jobscript had them — MACE-OFF runs fine on CPU, just slower
   #SBATCH --output=#JOBDIR#/slurm_%j.out
   #SBATCH --error=#JOBDIR#/slurm_%j.err
 
