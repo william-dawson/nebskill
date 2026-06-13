@@ -241,7 +241,8 @@ def main():
                             send=send,
                             recv=["neb_result.json", "neb_trajectory.xyz",
                                   "neb_progress.jsonl"],
-                            extra_args=extra))
+                            extra_args=extra,
+                            progress_file="neb_progress.jsonl"))
 
     cfg     = load_config(args.config)
     if args.backend:

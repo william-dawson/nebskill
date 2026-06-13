@@ -39,19 +39,20 @@ optimizer step (`phase`, `step`, `fmax`, `fmax_target`, `barrier_est_ev`,
 `ts_image`, `elapsed_s`), flushed immediately.
 
 For long runs (especially the **pyscf** backend, which can take hours), run the
-command in the **background** and poll/tail the progress file so you can see how
-convergence is going and step in if it stalls:
+command in the **background**. There are two ways to watch:
 
-```bash
-# start in the background, then watch
-tail -f outputs/reaction_{id:04d}/neb_progress.jsonl
-```
+- **Streamed output** — a dispatched run polls the job and prints `[progress]`
+  lines (one per optimizer step) to its own stdout as it goes, so reading the
+  backgrounded command's output shows convergence live. No extra setup.
+- **Tail the file** for a local run:
+  ```bash
+  tail -f outputs/reaction_{id:04d}/neb_progress.jsonl
+  ```
 
 If the trace shows a stall — fmax plateauing well above target, fmax oscillating,
-or `ts_image` wandering without the barrier settling — you can stop the run and
-re-launch with an adjusted lever (see `/nebskill:monitoring-convergence`) rather
-than waiting for the full step budget to burn. (We assume runs on the login node,
-so the log is directly readable as it's written.)
+or `ts_image` wandering without the barrier settling — stop the run and re-launch
+with an adjusted lever (see `/nebskill:monitoring-convergence`) rather than
+waiting for the full step budget to burn.
 
 ## n_images
 
