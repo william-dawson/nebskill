@@ -31,6 +31,31 @@ The calculator backend (MACE or PySCF/DFT) is chosen during setup. With the
 PySCF backend you can ask Claude to reproduce the dataset's barriers or hunt
 for reactions where NEB finds a lower barrier than the published value.
 
+## Skills
+
+The skills run in pipeline order:
+
+- **`/nebskill:configuring-machine`** — one-time setup: RemoteManager config,
+  backend choice (MACE or PySCF), and `uv` install.
+- **`/nebskill:loading-reaction`** — load a reaction from Transition1x and
+  extract NEB endpoints.
+- **`/nebskill:relaxing-endpoints`** — relax reactant and product with the
+  chosen calculator.
+- **`/nebskill:running-neb`** — two-phase NEB (standard then CI-NEB) to find the
+  minimum energy path and barrier; writes a live progress log.
+- **`/nebskill:monitoring-convergence`** — diagnose a non-converged NEB and
+  retry with adjusted levers (images, spring constant, optimizer, step size).
+- **`/nebskill:analyzing-results`** — compute barriers, plot the energy profile,
+  and compare against the dataset's DFT reference.
+
+## In progress
+
+- **`/nebskill:finding-lower-barriers`** — a research skill to hunt for
+  reactions whose published transition state may not be the lowest, by triaging
+  candidates cheaply with MACE and confirming lower saddles at the dataset's DFT
+  level. Still being developed (needs saddle-point verification and
+  intermediate seeding).
+
 ## Requirements
 
 - [Claude Code](https://claude.ai/code)
