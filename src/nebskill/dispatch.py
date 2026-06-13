@@ -76,11 +76,13 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
         return {"returncode": r.returncode, "stdout": r.stdout, "stderr": r.stderr}
 
     # RemoteManager persists run state in a dataset-<hash>.yaml keyed by
-    # function + args. On a fresh re-invocation after a crash or SLURM timeout
-    # it restores that state, so a plain run() would *skip* the runner thinking
-    # it already ran — no recovery. skip=False lets an already-submitted runner
-    # be resubmitted; run(force=True) re-runs failed/timed-out runners while
-    # leaving genuinely successful ones untouched (no wasted recompute).
+    # function + args and restores it on a fresh invocation from the same cwd.
+    # Recovery semantics we want:
+    #   - no prior run       -> run it
+    #   - prior succeeded    -> skip and reuse results (no wasted DFT recompute)
+    #   - prior failed/timed -> resubmit
+    # Plain run() covers the first two; only a *failed* prior run needs force.
+    # (A blanket force=True would also re-run successful jobs — wrong.)
     ds = Dataset(_run, url=url)
     ds.local_dir = str(out_dir)
     ds.append_run(
@@ -88,9 +90,9 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
          "extra_args": extra_args or []},
         extra_files_send=[str(out_dir / f) for f in send],
         extra_files_recv=list(recv),
-        skip=False,
     )
-    ds.run(force=True)   # asynchronous: returns after submission
+    prior_failed = bool(getattr(ds.runners[0], "is_failed", None))
+    ds.run(force=prior_failed)   # asynchronous: returns after submission
 
     if progress_file:
         # Live poll loop. Tail the worker's progress file from its run
