@@ -138,12 +138,24 @@ dependencies = [
 
 ## 5 — Install with uv sync
 
-**Important:** uv can be too aggressive with concurrent downloads and builds,
-which causes errors on some systems. Always limit concurrency:
+**Important:** HPC systems often have low process caps (`ulimit -u`) that
+prevent uv from spawning the threads it needs. Always run these two steps
+before `uv sync`:
 
 ```bash
-cd WORKING_DIR && uv sync --jobs 4
+# Step 1: raise the soft process limit to the hard limit
+ulimit -s 512
+
+# Step 2: clamp uv's thread demand via env vars
+# (--jobs flag is not reliable across uv versions)
+export RAYON_NUM_THREADS=1
+export TOKIO_WORKER_THREADS=1
+export UV_CONCURRENT_DOWNLOADS=4
+export UV_CONCURRENT_BUILDS=1
+export CARGO_BUILD_JOBS=1
 ```
+
+Then run `uv sync` with the appropriate index:
 
 **NVIDIA** — verify index URL first:
 ```bash
@@ -152,20 +164,21 @@ curl -sI https://download.pytorch.org/whl/cu{VERSION}/ | head -1
 If not `200`/`301`: check https://download.pytorch.org/whl/ for the nearest
 available version and tell the user before proceeding.
 ```bash
-cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/cu{VERSION} --jobs 4
+cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/cu{VERSION}
 ```
 
 **AMD ROCm:**
 ```bash
-cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/rocm{VERSION} --jobs 4
+cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/rocm{VERSION}
 ```
 
 **CPU only:**
 ```bash
-cd WORKING_DIR && uv sync --jobs 4
+cd WORKING_DIR && uv sync
 ```
 
-Show output. If concurrent build errors appear, retry with `--jobs 1`.
+Show output. If thread/process errors still appear, set `RAYON_NUM_THREADS=1`
+and `UV_CONCURRENT_BUILDS=1` and retry.
 
 ---
 
