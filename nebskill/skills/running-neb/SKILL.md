@@ -1,8 +1,9 @@
 ---
 name: running-neb
 description: >
-  Runs two-phase NEB (standard NEB then CI-NEB) with MACE-OFF on a GPU compute
-  node to find the minimum energy path and reaction barrier. Use after
+  Runs two-phase NEB (standard NEB then CI-NEB) to find the minimum energy path
+  and reaction barrier, using the configured backend (MACE or PySCF). Writes a
+  live per-step progress log; can be backgrounded and watched. Use after
   relaxing-endpoints. If convergence fails (returncode=4), use monitoring-convergence.
 allowed-tools: Bash Read Write
 ---
@@ -16,31 +17,54 @@ phases: standard NEB (phase 1) followed by Climbing Image NEB (phase 2).
 nebskill-neb --reaction-id INT
 ```
 
-Override parameters for retry attempts:
+Override parameters (used by `/nebskill:monitoring-convergence` on retry):
 
 ```bash
 nebskill-neb --reaction-id INT \
-    [--n-images N] [--spring-constant K] [--method string]
+    [--n-images N] [--spring-constant K] [--method string] \
+    [--optimizer FIRE|BFGS|ODE] [--max-step 0.05] [--max-steps N]
 ```
+
+## Watch progress live
+
+The run writes `outputs/reaction_{id:04d}/neb_progress.jsonl` — one JSON line per
+optimizer step (`phase`, `step`, `fmax`, `fmax_target`, `barrier_est_ev`,
+`ts_image`, `elapsed_s`), flushed immediately.
+
+For long runs (especially the **pyscf** backend, which can take hours), run the
+command in the **background** and poll/tail the progress file so you can see how
+convergence is going and step in if it stalls:
+
+```bash
+# start in the background, then watch
+tail -f outputs/reaction_{id:04d}/neb_progress.jsonl
+```
+
+If the trace shows a stall — fmax plateauing well above target, fmax oscillating,
+or `ts_image` wandering without the barrier settling — you can stop the run and
+re-launch with an adjusted lever (see `/nebskill:monitoring-convergence`) rather
+than waiting for the full step budget to burn. (We assume runs on the login node,
+so the log is directly readable as it's written.)
 
 ## n_images
 
 Unless overridden:
 ```
-n_images = max(9, round(path_length_Å / 1.0))
+n_images = max(10, round(path_length_Å / 1.0))
 ```
 
 ## Phase 1 — Standard NEB
 
 - IDPP interpolation between endpoints
-- FIRE optimiser, max `phase1_max_steps` steps (default 200)
-- Converges when NEB fmax < `phase1_fmax` (default 0.3 eV/Å)
+- Optimizer from config (FIRE default; BFGS/ODE selectable), max
+  `phase1_max_steps` steps (default 300)
+- Converges when NEB fmax < `phase1_fmax` (default 0.5 eV/Å)
 - Exit code 4 if not converged → go to `/nebskill:monitoring-convergence`
 
 ## Phase 2 — CI-NEB
 
 - Continues from phase 1 positions with `climb=True`
-- FIRE optimiser, max `phase2_max_steps` steps (default 300)
+- Same optimizer, max `phase2_max_steps` steps (default 500)
 - Converges when NEB fmax < `phase2_fmax` (default 0.05 eV/Å)
 - Exit code 4 if not converged → go to `/nebskill:monitoring-convergence`
 
