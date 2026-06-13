@@ -16,8 +16,12 @@ the Python package.
 
 ## Usage
 
-Ask Claude about reaction barriers, transition states, or NEB calculations.
-The skill activates automatically, or invoke it directly.
+Just ask Claude in plain language, for example:
+
+> I would like to do an NEB calculation
+
+The skill activates automatically. You can also ask about reaction barriers,
+transition states, or minimum energy paths, or invoke a step directly.
 
 ## Requirements
 
