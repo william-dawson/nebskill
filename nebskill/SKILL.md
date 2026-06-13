@@ -84,13 +84,17 @@ active configuration:
 
 | Parameter | Value | Source |
 |---|---|---|
+| Calculator backend | mace | neb_local.yaml (chosen at setup) |
 | MACE-OFF model size | medium | default |
 | NEB images | auto | default |
 | Spring constant k | 0.1 eV/Å | default |
-| Phase 1 fmax | 0.3 eV/Å | default |
+| Phase 1 fmax | 0.5 eV/Å | default |
 | Phase 2 fmax | 0.05 eV/Å | default |
 | Max retry attempts | 3 | default |
-| SLURM partition | ... | neb_local.yaml |
+
+The backend is fixed at setup time (`/nebskill:configuring-machine`). To change
+it for this project, edit `calculator.backend` in `neb_local.yaml`, or override
+a single run with `--backend mace|pyscf` on the relax/neb commands.
 
 Then ask:
 > "Shall I proceed with these settings, or would you like to change anything?"
