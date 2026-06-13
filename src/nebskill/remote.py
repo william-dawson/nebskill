@@ -128,24 +128,24 @@ def relax_endpoints(reaction_id: int, fmax: float = None) -> dict:
     url = _make_computer(cfg)
     out_dir = _out_dir(cfg, reaction_id)
 
-    def _run(reaction_id, fmax, output_dir):
+    def _run(reaction_id, fmax):
         import subprocess, sys
+        # Input files were staged to the job dir by extra_files_send.
+        # Use --output-dir . so outputs land in the same dir for retrieval.
         cmd = [sys.executable, "-m", "nebskill.relax",
                "--reaction-id", str(reaction_id),
-               "--output-dir", output_dir]
+               "--output-dir", "."]
         if fmax is not None:
             cmd += ["--fmax", str(fmax)]
         r = subprocess.run(cmd, capture_output=True, text=True)
         return {"returncode": r.returncode, "stdout": r.stdout, "stderr": r.stderr}
 
     ds = Dataset(_run, url=url)
+    ds.local_dir = str(out_dir)   # received files land here
     ds.append_run(
-        {"reaction_id": reaction_id, "fmax": fmax, "output_dir": str(out_dir)},
+        {"reaction_id": reaction_id, "fmax": fmax},
         extra_files_send=[str(out_dir / "endpoints.json")],
-        extra_files_recv=[
-            str(out_dir / "relaxed_endpoints.json"),
-            str(out_dir / "relax_failure.json"),
-        ],
+        extra_files_recv=["relaxed_endpoints.json", "relax_failure.json"],
     )
     ds.run()
     ds.wait()
@@ -167,11 +167,11 @@ def run_neb(reaction_id: int, n_images: int = None,
     url = _make_computer(cfg)
     out_dir = _out_dir(cfg, reaction_id)
 
-    def _run(reaction_id, n_images, method, spring_constant, output_dir):
+    def _run(reaction_id, n_images, method, spring_constant):
         import subprocess, sys
         cmd = [sys.executable, "-m", "nebskill.neb",
                "--reaction-id", str(reaction_id),
-               "--output-dir", output_dir]
+               "--output-dir", "."]
         if n_images:        cmd += ["--n-images",        str(n_images)]
         if method:          cmd += ["--method",          method]
         if spring_constant: cmd += ["--spring-constant", str(spring_constant)]
@@ -179,18 +179,15 @@ def run_neb(reaction_id: int, n_images: int = None,
         return {"returncode": r.returncode, "stdout": r.stdout, "stderr": r.stderr}
 
     ds = Dataset(_run, url=url)
+    ds.local_dir = str(out_dir)   # received files land here
     ds.append_run(
         {"reaction_id": reaction_id, "n_images": n_images,
-         "method": method, "spring_constant": spring_constant,
-         "output_dir": str(out_dir)},
+         "method": method, "spring_constant": spring_constant},
         extra_files_send=[
             str(out_dir / "relaxed_endpoints.json"),
             str(out_dir / "endpoints.json"),
         ],
-        extra_files_recv=[
-            str(out_dir / "neb_result.json"),
-            str(out_dir / "neb_trajectory.xyz"),
-        ],
+        extra_files_recv=["neb_result.json", "neb_trajectory.xyz"],
     )
     ds.run()
     ds.wait()
