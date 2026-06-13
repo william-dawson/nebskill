@@ -109,10 +109,14 @@ def main():
         sys.exit(1)
 
     endpoints = json.loads(endpoints_path.read_text())
+    charge = endpoints.get("charge", 0)
+    spin   = endpoints.get("spin", 0)
+    backend = cfg.get("calculator", {}).get("backend", "mace")
     print(f"Relaxing endpoints for reaction {args.reaction_id} "
-          f"({endpoints['formula']}) with MACE-OFF {cfg['calculator']['model_size']}")
+          f"({endpoints['formula']}) with backend={backend} "
+          f"(charge={charge}, spin={spin})")
 
-    calc    = make_calculator(cfg)
+    calc    = make_calculator(cfg, charge=charge, spin=spin)
     results = {}
     failure = None
 
@@ -144,7 +148,8 @@ def main():
         "rxn_key":                endpoints["rxn_key"],
         "dft_forward_barrier_ev": endpoints["dft_forward_barrier_ev"],
         "dft_reverse_barrier_ev": endpoints["dft_reverse_barrier_ev"],
-        "mace_model_size":        cfg["calculator"]["model_size"],
+        "backend":                cfg["calculator"].get("backend", "mace"),
+        "model_size":             cfg["calculator"].get("model_size"),
         "reactant":               results["reactant"],
         "product":                results["product"],
         "ts_reference":           endpoints["ts_reference"],

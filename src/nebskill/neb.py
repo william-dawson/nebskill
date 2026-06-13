@@ -156,7 +156,8 @@ def main():
 
     reactant = dict_to_atoms(relaxed["reactant"])
     product  = dict_to_atoms(relaxed["product"])
-    calc     = make_calculator(cfg)
+    calc     = make_calculator(cfg, charge=endpoints.get("charge", 0),
+                               spin=endpoints.get("spin", 0))
 
     n_images = args.n_images if args.n_images else compute_n_images(reactant, product, cfg)
     method   = neb_cfg["method"]
