@@ -33,16 +33,14 @@ def _load_cfg() -> dict:
 
 def _make_computer(cfg: dict):
     from remotemanager import Computer
+    # All SLURM directives are hardcoded in the template — no parameter
+    # substitution needed. Only #JOBDIR# and #COMMAND# remain dynamic.
     url = Computer(
         template=cfg["slurm_template"],
         host=cfg["host"],
         submitter=cfg["submitter"],
         python=cfg["python"],
     )
-    if cfg.get("partition"): url.partition      = cfg["partition"]
-    if cfg.get("account"):   url.account        = cfg["account"]
-    if cfg.get("gpus"):      url.gpus           = cfg["gpus"]
-    if cfg.get("walltime"):  url.walltime       = cfg["walltime"]
     return url
 
 
