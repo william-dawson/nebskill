@@ -1,14 +1,14 @@
 ---
-name: monitor
+name: monitoring-convergence
 description: >
-  Diagnose a NEB convergence failure and drive an agent-based retry loop.
-  Reads diagnostics, reasons about the failure, chooses one intervention,
-  re-runs the NEB, and repeats up to max_attempts times. Only enter this
-  skill if nebskill-neb exited with code 4.
+  Diagnoses NEB convergence failures and drives an agent-based retry loop.
+  Calls nebskill:compute_diagnostics, reasons about the failure mode, chooses
+  one intervention, and re-runs nebskill:run_neb with adjusted parameters.
+  Use only when running-neb returns returncode=4.
 allowed-tools: Bash Read Write
 ---
 
-Only enter this step if `nebskill-neb` exited with code 4. You drive the
+Only enter this step if `nebskill:run_neb` exited with code 4. You drive the
 retry loop: diagnose → reason → intervene → re-run → repeat.
 
 Maximum attempts: `retry.max_attempts` in config (default 3).
@@ -18,7 +18,7 @@ Maximum attempts: `retry.max_attempts` in config (default 3).
 ## 4.1 — Compute diagnostics
 
 ```bash
-nebskill-diagnose --reaction-id INT
+nebskill:compute_diagnostics --reaction-id INT
 ```
 
 Read `outputs/reaction_{id:04d}/diagnostics.json` in full.
@@ -62,25 +62,25 @@ already failed.
 
 | Intervention | CLI flag |
 |---|---|
-| More images | `--n-images N` on nebskill-neb |
-| Different spring constant | `--spring-constant K` on nebskill-neb |
-| Switch to string method | `--method string` on nebskill-neb |
-| Re-relax endpoints tighter | `nebskill-relax --fmax 0.005`, then nebskill-neb |
+| More images | `--n-images N` on nebskill:run_neb |
+| Different spring constant | `--spring-constant K` on nebskill:run_neb |
+| Switch to string method | `--method string` on nebskill:run_neb |
+| Re-relax endpoints tighter | `nebskill:relax_endpoints --fmax 0.005`, then nebskill:run_neb |
 
 ---
 
 ## 4.4 — Re-run NEB
 
 ```bash
-nebskill-neb --reaction-id INT \
+nebskill:run_neb --reaction-id INT \
     [--n-images N] [--spring-constant K] [--method string]
 ```
 
 For endpoint re-relaxation:
 
 ```bash
-nebskill-relax --reaction-id INT --fmax 0.005
-nebskill-neb   --reaction-id INT
+nebskill:relax_endpoints --reaction-id INT --fmax 0.005
+nebskill:run_neb   --reaction-id INT
 ```
 
 ---
@@ -89,7 +89,7 @@ nebskill-neb   --reaction-id INT
 
 Read `outputs/reaction_{id:04d}/neb_result.json`.
 
-- `latest.converged: true` → proceed to `/nebskill:analyze`
+- `latest.converged: true` → proceed to `/nebskill:analyzing-results`
 - Not converged, attempts remaining → go back to 4.1
 - Attempts exhausted → write failure report and stop
 

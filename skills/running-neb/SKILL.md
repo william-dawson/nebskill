@@ -1,9 +1,9 @@
 ---
-name: neb
+name: running-neb
 description: >
-  Run a two-phase NEB calculation (standard NEB then CI-NEB) between relaxed
-  endpoints using MACE-OFF. Exits with code 4 if convergence fails, triggering
-  the monitor skill. Run after nebskill-relax.
+  Runs two-phase NEB (standard NEB then CI-NEB) with MACE-OFF on a GPU compute
+  node to find the minimum energy path and reaction barrier. Use after
+  relaxing-endpoints. If convergence fails (returncode=4), use monitoring-convergence.
 allowed-tools: Bash Read Write
 ---
 
@@ -35,14 +35,14 @@ n_images = max(9, round(path_length_Å / 1.0))
 - IDPP interpolation between endpoints
 - FIRE optimiser, max `phase1_max_steps` steps (default 200)
 - Converges when NEB fmax < `phase1_fmax` (default 0.3 eV/Å)
-- Exit code 4 if not converged → go to `/nebskill:monitor`
+- Exit code 4 if not converged → go to `/nebskill:monitoring-convergence`
 
 ## Phase 2 — CI-NEB
 
 - Continues from phase 1 positions with `climb=True`
 - FIRE optimiser, max `phase2_max_steps` steps (default 300)
 - Converges when NEB fmax < `phase2_fmax` (default 0.05 eV/Å)
-- Exit code 4 if not converged → go to `/nebskill:monitor`
+- Exit code 4 if not converged → go to `/nebskill:monitoring-convergence`
 
 ## neb_result.json
 
@@ -60,6 +60,6 @@ n_images = max(9, round(path_length_Å / 1.0))
 ## Exit codes
 
 - `0` — both phases converged
-- `4` — convergence failure → proceed to `/nebskill:monitor`
+- `4` — convergence failure → proceed to `/nebskill:monitoring-convergence`
 
 See `${CLAUDE_PLUGIN_ROOT}/references/neb_method.md`.

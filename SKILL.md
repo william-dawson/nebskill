@@ -45,7 +45,7 @@ nebskill-load --help
 ```
 
 If the command is not found, the package has not been installed. Tell the user:
-> "The nebskill package isn't installed yet. Run `/nebskill:setup` first."
+> "The nebskill package isn't installed yet. Run `/nebskill:configuring-machine` first."
 Stop and do not proceed until setup is complete.
 
 ### Is the dataset present?
@@ -105,25 +105,25 @@ as a CLI flag to the relevant script. Do not modify the yaml files.
 Execute each step in order. Read the step's INSTRUCTIONS.md before running it,
 then report a brief summary of what happened before moving to the next.
 
-1. **Load reaction** — call MCP tool `load_reaction(reaction_id=INT)`
-   - See `/nebskill:load` for output schema
+1. **Load reaction** — call `nebskill:load_reaction(reaction_id=INT)`
+   - See `/nebskill:loading-reaction` for output schema
    - Report: formula, number of atoms, DFT barrier from Transition1x
 
-2. **Relax endpoints** — call MCP tool `relax_endpoints(reaction_id=INT)`
-   - See `/nebskill:relax` for details — submits a SLURM GPU job
+2. **Relax endpoints** — call `nebskill:relax_endpoints(reaction_id=INT)`
+   - See `/nebskill:relaxing-endpoints` — submits a SLURM GPU job
    - Report: converged fmax for reactant and product, optimizer used
 
-3. **Run NEB** — call MCP tool `run_neb(reaction_id=INT)`
-   - See `/nebskill:neb` for details — submits a SLURM GPU job
+3. **Run NEB** — call `nebskill:run_neb(reaction_id=INT)`
+   - See `/nebskill:running-neb` — submits a SLURM GPU job
    - Report: whether phase 1 and phase 2 converged, final fmax, steps taken
 
-4. **Monitor & retry if needed** — call MCP tool `compute_diagnostics`, then
-   reason and call `run_neb` again with adjusted parameters
-   - See `/nebskill:monitor` — only if run_neb returned returncode=4
+4. **Monitor & retry if needed** — call `nebskill:compute_diagnostics(reaction_id=INT)`, then
+   reason and call `nebskill:run_neb` again with adjusted parameters
+   - See `/nebskill:monitoring-convergence` — only if run_neb returned returncode=4
    - Report: diagnosed failure mode, intervention chosen, outcome
 
-5. **Analyze & report** — call MCP tool `analyze_results(reaction_id=INT)`
-   - See `/nebskill:analyze` — runs on login node
+5. **Analyze & report** — call `nebskill:analyze_results(reaction_id=INT)`
+   - See `/nebskill:analyzing-results` — runs on login node
    - Report: forward and reverse barriers in eV and kcal/mol, MACE-OFF vs DFT
      error, location of the transition state image
 

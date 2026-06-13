@@ -1,9 +1,9 @@
 ---
-name: analyze
+name: analyzing-results
 description: >
-  Analyze a converged NEB calculation: compute barriers, generate the energy
-  profile plot, write the convergence log, and summarise results. Run after
-  nebskill-neb converges (exit code 0).
+  Computes reaction barriers, generates the energy profile plot, and writes the
+  convergence log from a converged NEB calculation. Use after running-neb
+  returns returncode=0, or when the user asks for barrier heights or results.
 allowed-tools: Bash Read Write
 ---
 
@@ -14,14 +14,14 @@ Produces all output artifacts from a converged NEB and summarises the results.
 Run all three in sequence:
 
 ```bash
-nebskill-analyze --reaction-id INT
-nebskill-plot    --reaction-id INT
-nebskill-writer  --reaction-id INT
+nebskill:analyze_results --reaction-id INT
+nebskill:analyze_results    --reaction-id INT
+nebskill:analyze_results  --reaction-id INT
 ```
 
 ---
 
-## nebskill-analyze — barriers and comparison
+## nebskill:analyze_results — barriers and comparison
 
 Reads `neb_result.json` and `relaxed_endpoints.json`. Computes:
 
@@ -34,7 +34,7 @@ Writes `outputs/reaction_{id:04d}/report.json`.
 
 ---
 
-## nebskill-plot — energy profile
+## nebskill:analyze_results — energy profile
 
 Writes `outputs/reaction_{id:04d}/energy_profile.png`:
 - Energy vs image index relative to reactant
@@ -43,7 +43,7 @@ Writes `outputs/reaction_{id:04d}/energy_profile.png`:
 
 ---
 
-## nebskill-writer — trajectory and log
+## nebskill:analyze_results — trajectory and log
 
 - `neb_trajectory.xyz` — all NEB images in extended XYZ format
 - `convergence.log` — tab-separated phase summary:

@@ -1,8 +1,9 @@
 ---
-name: load
+name: loading-reaction
 description: >
-  Load one reaction from the Transition1x dataset and extract NEB endpoints.
-  Auto-downloads the dataset if missing. Run before nebskill-relax.
+  Loads one reaction from the Transition1x dataset and extracts NEB endpoints.
+  Auto-downloads the dataset (~6.2 GB) if missing. Use when starting a new NEB
+  calculation or when the user specifies a reaction index to run.
 allowed-tools: Bash Read Write
 ---
 

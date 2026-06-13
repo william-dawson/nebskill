@@ -1,9 +1,9 @@
 ---
-name: relax
+name: relaxing-endpoints
 description: >
-  Relax reactant and product endpoint structures with MACE-OFF before NEB.
-  Mandatory — Transition1x endpoints are not local minima. Run after
-  nebskill-load and before nebskill-neb.
+  Relaxes reactant and product endpoint structures with MACE-OFF on a GPU
+  compute node. Mandatory — Transition1x endpoints are not local minima.
+  Use after loading-reaction and before running-neb.
 allowed-tools: Bash Read Write
 ---
 
@@ -14,7 +14,7 @@ cause poor NEB convergence if used directly.
 ## Script
 
 ```bash
-nebskill-relax --reaction-id INT
+nebskill:relax_endpoints --reaction-id INT
 ```
 
 Reads `outputs/reaction_{id:04d}/endpoints.json`.
@@ -23,7 +23,7 @@ Writes `outputs/reaction_{id:04d}/relaxed_endpoints.json`.
 To re-relax with a tighter fmax (e.g. during a retry):
 
 ```bash
-nebskill-relax --reaction-id INT --fmax 0.005
+nebskill:relax_endpoints --reaction-id INT --fmax 0.005
 ```
 
 ## Relaxation protocol

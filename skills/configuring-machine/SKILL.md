@@ -1,10 +1,10 @@
 ---
-name: setup
+name: configuring-machine
 description: >
-  First-time setup for nebskill on a new machine. Works through a checklist:
-  configure RemoteManager from a real jobscript example, probe the compute
-  node for GPU specs, install Python dependencies, write nebskill_remote.yaml.
-  Run once before using any other nebskill skill.
+  Configures RemoteManager for this machine, detects GPU specs from inside a
+  real compute node via a probe job, installs Python dependencies with uv, and
+  writes nebskill_remote.yaml. Use once on each new machine before running any
+  NEB calculations, or when the user asks how to set up nebskill.
 allowed-tools: Bash Read Write
 ---
 
