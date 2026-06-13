@@ -196,6 +196,7 @@ Write to `WORKING_DIR/nebskill_remote.yaml`:
 python: PYTHON_PATH_FROM_STEP_6
 host: HOST
 submitter: SUBMITTER
+project_dir: WORKING_DIR   # absolute path — used to resolve output file locations
 slurm_template: |
   #!/bin/bash
   #SBATCH --partition=1n1gpu          ← hardcoded from user's jobscript
