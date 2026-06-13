@@ -1,124 +1,133 @@
 ---
 name: setup
 description: >
-  First-time setup for nebskill on a new machine. Configures RemoteManager,
-  detects GPU specs from inside an actual compute node, installs all Python
-  dependencies via uv, and writes nebskill_remote.yaml. Run once before
-  using any other nebskill skill.
+  First-time setup for nebskill on a new machine. Works through a checklist:
+  configure RemoteManager from a real jobscript example, probe the compute
+  node for GPU specs, install Python dependencies, write nebskill_remote.yaml.
+  Run once before using any other nebskill skill.
 allowed-tools: Bash Read Write
 ---
 
-## Overview
+## Checklist
 
-Setup must happen in this exact order — each step depends on the previous:
+Work through each item in order. Tick off each one before moving to the next.
+Each step depends on the previous.
 
-1. Working directory
-2. **Configure RemoteManager** — without this we cannot submit any jobs
-3. **Submit probe job** — only a real compute node knows its GPU specs
-4. Create `pyproject.toml`
-5. `uv sync` with the PyTorch variant the probe job revealed
-6. Capture Python path
-7. Write `nebskill_remote.yaml`
-
-One local config file is generated (gitignored):
-- `nebskill_remote.yaml` — RemoteManager config (SLURM template, host, Python path)
-
-The MCP server is registered by the plugin and starts automatically when
-Claude Code is run from the project directory.
+- [ ] 1. Working directory
+- [ ] 2. RemoteManager configuration (from real jobscript)
+- [ ] 3. Probe compute node for GPU specs
+- [ ] 4. Create project pyproject.toml
+- [ ] 5. Install dependencies with uv sync
+- [ ] 6. Capture Python path
+- [ ] 7. Write nebskill_remote.yaml
 
 ---
 
-## Step 1 — Working directory
+## 1 — Working directory
 
 Ask:
 > "Where would you like to run NEB calculations? (full path to a directory)"
 
-Create the directory if it doesn't exist. All subsequent files are written here.
+Create it if it doesn't exist.
 
 ---
 
-## Step 2 — Configure RemoteManager
+## 2 — RemoteManager configuration
 
-This is the most important step. Ask the user for:
+Ask the user:
+> "Can you paste a typical jobscript you use on this machine?"
 
-- **Host**: hostname of the login node, or `localhost` if running directly
-  on the cluster head node (e.g. `login01.ai.r-ccs.riken.jp` or `localhost`)
-- **Submitter**: `sbatch` for SLURM, or `bash` to run directly without a scheduler
-- **Partition**: SLURM partition name (e.g. `1n1gpu`)
-- **Account**: SLURM account / project allocation code
-- **GPUs per node**: typically `1`
-- **Walltime**: job time limit (e.g. `02:00:00`)
+Read it carefully. Extract:
+- Scheduler directives (`#SBATCH` lines) → partition, account, nodes, GPUs, walltime
+- Any `module load` commands or environment setup lines
+- The command pattern at the end
 
-From these, construct the SLURM job template using RemoteManager's
-`#PARAMETER#` substitution syntax:
-
-```
-#!/bin/bash
-#SBATCH --partition=#PARTITION#
-#SBATCH --account=#ACCOUNT#
-#SBATCH --nodes=1
-#SBATCH --gpus-per-node=#GPUS:default=1#
-#SBATCH --time=#WALLTIME:default=02:00:00,format=time#
-#SBATCH --output=#JOBDIR#/slurm_%j.out
-#SBATCH --error=#JOBDIR#/slurm_%j.err
-
-#COMMAND#
-```
-
-Confirm the template and settings with the user before proceeding.
-
----
-
-## Step 3 — Submit probe job to detect GPU
-
-GPU detection must happen from inside a real compute node — the login node
-may have different hardware or environment. Build a minimal probe jobscript
-using the settings from Step 2:
-
+Also run:
 ```bash
-#!/bin/bash
-#SBATCH --partition=PARTITION
-#SBATCH --account=ACCOUNT
-#SBATCH --nodes=1
-#SBATCH --gpus-per-node=GPUS
-#SBATCH --time=00:05:00
-#SBATCH --output=/tmp/nebskill_probe_%j.out
-
-nvidia-smi 2>/dev/null || true
-rocm-smi --version 2>/dev/null || true
-xpu-smi discovery 2>/dev/null || true
+hostname
+which sbatch
 ```
 
-Write to `/tmp/nebskill_probe.sh` and submit:
-```bash
-sbatch /tmp/nebskill_probe.sh
+From the jobscript and these outputs, determine:
+- `host`: `localhost` if already on the cluster head node, otherwise the login
+  node hostname the user SSHs to
+- `submitter`: `sbatch` or `bash`
+- `partition`, `account`, `gpus`, `walltime`: from the jobscript
+
+Present a summary back to the user and ask them to confirm or correct each
+value before continuing. Do not proceed until confirmed.
+
+Convert the jobscript into a RemoteManager template by replacing fixed values
+with `#PARAMETER#` placeholders:
+```
+partition: 1n1gpu  →  #PARTITION#
+account: ra123    →  #ACCOUNT#
+--gpus-per-node=1 →  #GPUS:default=1#
+--time=02:00:00   →  #WALLTIME:default=02:00:00,format=time#
 ```
 
-Wait for completion (`squeue -j JOBID` until no longer listed), then read
-`/tmp/nebskill_probe_JOBID.out`.
-
-If submitter is `bash`, run the probe directly and read stdout.
-
-Interpret output:
-- `nvidia-smi` succeeded → NVIDIA, extract CUDA version (top-right corner)
-  → PyTorch index suffix `cu{MAJOR}{MINOR}` (e.g. CUDA 13.2 → `cu132`)
-- `rocm-smi` succeeded → AMD ROCm, extract version
-  → suffix `rocm{MAJOR}.{MINOR}` (e.g. ROCm 6.1 → `rocm6.1`)
-- `xpu-smi` succeeded → Intel XPU — warn user that Intel XPU requires
-  `intel-extension-for-pytorch` and ask how to proceed
-- Nothing detected → CPU only
-
-Show the user what was found before continuing.
+The final line of the template must be `#COMMAND#` — this is where
+RemoteManager injects the Python invocation.
 
 ---
 
-## Step 4 — Create pyproject.toml
+## 3 — Probe compute node for GPU specs
+
+Use RemoteManager directly to submit the probe — do not write a manual
+jobscript. Build a minimal `Computer` from the settings confirmed in step 2
+and submit a function that runs GPU detection:
+
+```python
+from remotemanager import Computer, Dataset
+
+url = Computer(
+    template=slurm_template,   # from step 2
+    host=host,
+    submitter=submitter,
+    python="python3",          # system python is fine for this probe
+)
+url.partition = partition
+url.account   = account
+url.gpus      = gpus
+url.walltime  = "00:05:00"    # short probe job
+
+def detect_gpu():
+    import subprocess
+    out = {}
+    for cmd in [["nvidia-smi"], ["rocm-smi", "--version"], ["xpu-smi", "discovery"]]:
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        out[cmd[0]] = r.stdout if r.returncode == 0 else None
+    return out
+
+ds = Dataset(detect_gpu, url=url)
+ds.append_run({})
+ds.run()
+ds.wait()
+ds.fetch_results()
+result = ds.results[0]
+```
+
+Interpret `result`:
+- `nvidia-smi` has output → NVIDIA; read CUDA version from top-right
+  → index suffix `cu{MAJOR}{MINOR}` (e.g. CUDA 13.2 → `cu132`)
+- `rocm-smi` has output → AMD ROCm; read version
+  → suffix `rocm{MAJOR}.{MINOR}`
+- `xpu-smi` has output → Intel XPU; warn user that
+  `intel-extension-for-pytorch` is required separately
+- Nothing → CPU only
+
+Show the user what was found and confirm before continuing.
+
+---
+
+## 4 — Create project pyproject.toml
 
 Write to `WORKING_DIR/pyproject.toml`:
 
 ```toml
 [project]
 name = "neb-project"
+version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "nebskill @ git+https://github.com/william-dawson/nebskill.git"
@@ -127,80 +136,67 @@ dependencies = [
 
 ---
 
-## Step 5 — Install with uv sync
+## 5 — Install with uv sync
 
-Construct the install command from the probe job result:
+**Important:** uv can be too aggressive with concurrent downloads and builds,
+which causes errors on some systems. Always limit concurrency:
 
-**NVIDIA** — verify the index URL first:
+```bash
+cd WORKING_DIR && uv sync --jobs 4
+```
+
+**NVIDIA** — verify index URL first:
 ```bash
 curl -sI https://download.pytorch.org/whl/cu{VERSION}/ | head -1
 ```
 If not `200`/`301`: check https://download.pytorch.org/whl/ for the nearest
 available version and tell the user before proceeding.
 ```bash
-cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/cu{VERSION}
+cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/cu{VERSION} --jobs 4
 ```
 
 **AMD ROCm:**
 ```bash
-cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/rocm{VERSION}
+cd WORKING_DIR && uv sync --index https://download.pytorch.org/whl/rocm{VERSION} --jobs 4
 ```
 
 **CPU only:**
 ```bash
-cd WORKING_DIR && uv sync
+cd WORKING_DIR && uv sync --jobs 4
 ```
 
-This may take several minutes on first run (~1–2 GB). Show output.
+Show output. If concurrent build errors appear, retry with `--jobs 1`.
 
 ---
 
-## Step 6 — Capture Python path
+## 6 — Capture Python path
 
 ```bash
 cd WORKING_DIR && uv run python -c "import sys; print(sys.executable)"
 ```
 
-This returns the absolute path to the venv Python, e.g.:
-`/home/user/my-neb-project/.venv/bin/python3`
-
 ---
 
-## Step 7 — Write nebskill_remote.yaml
+## 7 — Write nebskill_remote.yaml
 
 Write to `WORKING_DIR/nebskill_remote.yaml`:
 
 ```yaml
 # Generated by /nebskill:setup — do not edit manually
 python: PYTHON_PATH_FROM_STEP_6
-host: HOST_FROM_STEP_2
-submitter: SUBMITTER_FROM_STEP_2
-partition: PARTITION_FROM_STEP_2
-account: ACCOUNT_FROM_STEP_2
-gpus: GPUS_FROM_STEP_2
-walltime: WALLTIME_FROM_STEP_2
+host: HOST
+submitter: SUBMITTER
+partition: PARTITION
+account: ACCOUNT
+gpus: GPUS
+walltime: WALLTIME
 slurm_template: |
-  #!/bin/bash
-  #SBATCH --partition=#PARTITION#
-  #SBATCH --account=#ACCOUNT#
-  #SBATCH --nodes=1
-  #SBATCH --gpus-per-node=#GPUS:default=1#
-  #SBATCH --time=#WALLTIME:default=02:00:00,format=time#
-  #SBATCH --output=#JOBDIR#/slurm_%j.out
-  #SBATCH --error=#JOBDIR#/slurm_%j.err
-
-  #COMMAND#
+  TEMPLATE_FROM_STEP_2
 ```
 
 ---
 
 ## Done
 
-Report:
-- Working directory
-- RemoteManager configured (host, partition, account)
-- GPU detected: vendor, version, PyTorch index used
-- `nebskill_remote.yaml` written
-
-Tell the user to run Claude Code from `WORKING_DIR` so the MCP server
-starts with the correct environment.
+Report the completed checklist, then tell the user to run Claude Code from
+`WORKING_DIR` so the MCP server starts with the correct environment.
