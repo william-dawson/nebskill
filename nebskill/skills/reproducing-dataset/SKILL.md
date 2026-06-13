@@ -17,18 +17,19 @@ found a better saddle or path.
 
 ## 1 — Select the DFT backend
 
-The DFT path is much more expensive than MACE, so write a local override
-rather than changing defaults. In the working directory, create or edit
-`neb_local.yaml`:
+Two ways to switch from the default MACE backend to PySCF:
 
-```yaml
-calculator:
-  backend: pyscf
-  xc: wb97x
-  basis: 6-31g(d)
-```
+- **Per run (streamlined for development):** pass `--backend pyscf` to
+  `nebskill-relax` and `nebskill-neb`.
+- **Persistent:** set it in `neb_local.yaml` in the working directory:
+  ```yaml
+  calculator:
+    backend: pyscf
+    xc: wb97x
+    basis: 6-31g(d)
+  ```
 
-All steps then use PySCF automatically.
+Either way the calculation runs ωB97X/6-31G(d) DFT instead of MACE-OFF.
 
 ## 2 — Pick a tractable reaction
 
@@ -49,6 +50,11 @@ relax/neb steps dispatch to a compute node via RemoteManager automatically.
 
 > The first run that touches the DFT path will be slow. Make sure the SLURM
 > walltime in `nebskill_remote.yaml` is generous.
+>
+> **If a job times out or crashes**, just re-run the same command. Dispatch
+> uses `skip=False` + `run(force=True)`, so RemoteManager resubmits the failed
+> run rather than skipping it as already-done — while leaving genuinely
+> completed runs untouched.
 
 ## 4 — Interpret
 

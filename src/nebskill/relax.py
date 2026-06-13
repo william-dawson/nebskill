@@ -79,6 +79,8 @@ def main():
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--fmax", type=float, default=None,
                         help="Override relaxation fmax (for tighter re-relaxation)")
+    parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
+                        help="Override calculator backend (default from config)")
     parser.add_argument("--local", action="store_true",
                         help="Force local execution, skipping RemoteManager dispatch")
     args = parser.parse_args()
@@ -92,12 +94,16 @@ def main():
         remote = remote_config()
         if remote is not None:
             extra = ["--fmax", str(args.fmax)] if args.fmax else []
+            if args.backend:
+                extra += ["--backend", args.backend]
             sys.exit(submit(remote, "nebskill.relax", args.reaction_id, out_dir,
                             send=["endpoints.json"],
                             recv=["relaxed_endpoints.json", "relax_failure.json"],
                             extra_args=extra))
 
     cfg       = load_config(args.config)
+    if args.backend:
+        cfg["calculator"]["backend"] = args.backend
     relax_cfg = cfg["relaxation"]
     fmax      = args.fmax if args.fmax else relax_cfg["fmax"]
 

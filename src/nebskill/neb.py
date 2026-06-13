@@ -117,6 +117,8 @@ def main():
     parser.add_argument("--n-images",        type=int,   default=None)
     parser.add_argument("--method",          default=None)
     parser.add_argument("--spring-constant", type=float, default=None)
+    parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
+                        help="Override calculator backend (default from config)")
     parser.add_argument("--local", action="store_true",
                         help="Force local execution, skipping RemoteManager dispatch")
     args = parser.parse_args()
@@ -133,12 +135,15 @@ def main():
             if args.n_images:        extra += ["--n-images", str(args.n_images)]
             if args.method:          extra += ["--method", args.method]
             if args.spring_constant: extra += ["--spring-constant", str(args.spring_constant)]
+            if args.backend:         extra += ["--backend", args.backend]
             sys.exit(submit(remote, "nebskill.neb", args.reaction_id, out_dir,
                             send=["relaxed_endpoints.json", "endpoints.json"],
                             recv=["neb_result.json", "neb_trajectory.xyz"],
                             extra_args=extra))
 
     cfg     = load_config(args.config)
+    if args.backend:
+        cfg["calculator"]["backend"] = args.backend
     neb_cfg = cfg["neb"]
 
     if args.method:          neb_cfg["method"]          = args.method
