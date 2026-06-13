@@ -58,9 +58,11 @@ Ask the user if they want to tweak anything (time limit, nodes, CPUs,
 accelerators, account, partition) before locking the values in.
 
 Build the SLURM template by taking the jobscript verbatim with the agreed
-values **hardcoded**, removing the original run command, and adding `#COMMAND#`
-as the final line. Add `#JOBDIR#` to the `--output`/`--error` paths. Do not
-introduce any other `#PARAMETER#` placeholders.
+values **hardcoded**, keeping the `#SBATCH` directives and any `module load`
+or environment setup, and removing the original run command. Do **not** add
+`#COMMAND#`, `#JOBDIR#`, or any other placeholder — RemoteManager appends the
+job execution and manages the run directory and output capture itself. The
+template is just the scheduler header plus environment setup.
 
 ---
 
@@ -191,14 +193,12 @@ slurm_template: |
   #SBATCH --time=02:00:00             # hardcoded
   # any accelerator directives (--gpus-per-node etc.) only if the user's
   # jobscript had them — MACE-OFF runs fine on CPU, just slower
-  #SBATCH --output=#JOBDIR#/slurm_%j.out
-  #SBATCH --error=#JOBDIR#/slurm_%j.err
-
-  #COMMAND#
+  # module load / environment setup lines, if any
 ```
 
-Only `#JOBDIR#` and `#COMMAND#` are RemoteManager placeholders; everything
-else is hardcoded.
+The template is just the scheduler header and environment setup — no
+placeholders. RemoteManager appends the job execution and handles the run
+directory and output capture itself.
 
 ---
 

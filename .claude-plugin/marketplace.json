@@ -14,7 +14,7 @@
         "url": "git@github.com:william-dawson/nebskill.git",
         "path": "nebskill"
       },
-      "version": "0.5.4",
+      "version": "0.5.5",
       "description": "Nudged Elastic Band calculations for reaction barriers on organic molecules using MACE-OFF23 and the Transition1x dataset. Requires uv; Python dependencies installed automatically.",
       "author": {
         "name": "william-dawson"
