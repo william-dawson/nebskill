@@ -61,11 +61,11 @@ A concrete hypothesis tells you which lever to pull.
 
 ## 3 — Attack (aggressive NEB)
 
-**Give each attempt its own `--tag`** so parameter sets don't overwrite each
-other — `nebskill-neb --reaction-id N --optimizer ODE --tag ode` writes to
-`outputs/reaction_N/ode/`. Run the downstream commands with the same tag
-(`nebskill-analyze --reaction-id N --tag ode`, likewise monitor/frequencies) and
-compare `report.json` barriers across tags to see which attempt found the lowest.
+Just run `nebskill-neb` with different parameters — each parameter set is kept
+in its own place automatically, so attempts never overwrite each other, and the
+downstream commands (analyze, monitor, frequencies) operate on the most recent
+attempt without you specifying anything. You decide *which parameters*; the rest
+is handled.
 
 Use every lever in `/nebskill:monitoring-convergence`, harder than the dataset
 did. Productive moves for *finding a lower path* (not just converging one):
@@ -81,8 +81,10 @@ did. Productive moves for *finding a lower path* (not just converging one):
 - **Multiple attempts** from perturbed starting paths — a lower saddle in a
   different basin won't be found from one initial guess.
 
-Watch `neb_progress.jsonl` live (background the run) to see whether you are
-settling into a lower, smoother profile than the dataset's.
+Background long runs and check on them with `nebskill-monitor --reaction-id N`.
+Once you've tried several parameter sets, `nebskill-summary --reaction-id N`
+prints every attempt's barrier, deviation from the dataset, and convergence in
+one table — use it to see which attempt (if any) found a lower barrier.
 
 ## 4 — Confirm (the bar for claiming a flaw)
 

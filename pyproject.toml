@@ -1,6 +1,6 @@
 [project]
 name = "nebskill"
-version = "0.16.0"
+version = "0.17.0"
 description = "Nudged Elastic Band calculations for reaction barriers using MACE-OFF and Transition1x"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -28,6 +28,7 @@ nebskill-plot     = "nebskill.plot:main"
 nebskill-writer   = "nebskill.writer:main"
 nebskill-frequencies = "nebskill.frequencies:main"
 nebskill-monitor  = "nebskill.monitor:main"
+nebskill-summary  = "nebskill.summary:main"
 
 [build-system]
 requires = ["hatchling"]

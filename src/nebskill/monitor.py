@@ -38,8 +38,8 @@ def main():
                         help="Show only the last N steps (0 = all)")
     args = parser.parse_args()
 
-    from nebskill.paths import out_dir_for
-    out_dir = out_dir_for(args.reaction_id, args.output_dir, args.tag)
+    from nebskill.paths import resolve_out_dir
+    out_dir = resolve_out_dir(args.reaction_id, args.output_dir, args.tag)
     progress_name = f"neb_progress_{args.reaction_id:04d}.jsonl"
 
     text = ""

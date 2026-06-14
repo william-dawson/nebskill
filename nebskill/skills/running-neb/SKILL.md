@@ -34,22 +34,16 @@ product.
 
 ## Watch progress
 
-The run is quiet while it works (no streaming, so concurrent runs don't
-interleave output). Each optimizer step is logged to a per-reaction file
-`neb_progress_{id:04d}.jsonl` (`phase`, `step`, `fmax`, `fmax_target`,
-`barrier_est_ev`, `ts_image`, `elapsed_s`).
-
 For long runs (especially the **pyscf** backend, which can take hours), run the
-command in the **background**, then check on it whenever you like with:
+command in the **background**, then check on it whenever you like:
 
 ```bash
-nebskill-monitor --reaction-id INT          # all steps so far
+nebskill-monitor --reaction-id INT          # per-step convergence so far
 nebskill-monitor --reaction-id INT --tail 20
 ```
 
-`nebskill-monitor` retrieves that reaction's progress file from the running job
-(via RemoteManager) and prints the per-step trace plus a one-line latest-step
-summary. It works while the job runs and after it finishes.
+It prints each optimizer step (fmax, barrier estimate, which image is the peak)
+plus a latest-step summary, and works both during the run and after it finishes.
 
 If the trace shows a stall — fmax plateauing well above target, fmax oscillating,
 or `ts_image` wandering without the barrier settling — stop the run and re-launch

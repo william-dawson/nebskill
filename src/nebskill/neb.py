@@ -211,9 +211,9 @@ def main():
     parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
                         help="Override calculator backend (default from config)")
     parser.add_argument("--tag", default=None,
-                        help="Namespace this attempt into a subdirectory "
-                             "outputs/reaction_id/<tag>/ so multiple parameter "
-                             "sets for one reaction don't overwrite each other")
+                        help="Optional override for the attempt subdirectory name "
+                             "(by default it is derived automatically from the "
+                             "parameters; you normally don't need this)")
     parser.add_argument("--local", action="store_true",
                         help="Force local execution, skipping RemoteManager dispatch")
     parser.add_argument("--force", action="store_true",
@@ -221,16 +221,30 @@ def main():
                              "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
-    from nebskill.paths import reaction_root, out_dir_for
-    root    = reaction_root(args.reaction_id, args.output_dir)
-    out_dir = out_dir_for(args.reaction_id, args.output_dir, args.tag)
+    import os
     progress_name = f"neb_progress_{args.reaction_id:04d}.jsonl"
 
-    # A tagged attempt runs in its own subdir; bring in the shared inputs
-    # (endpoints + relaxed endpoints from relax, which is done once at the root).
-    if args.tag:
+    if os.environ.get("NEBSKILL_WORKER"):
+        # Worker: run exactly where dispatch placed us (its runner cwd).
+        out_dir = Path(args.output_dir) if args.output_dir else \
+                  Path(f"outputs/reaction_{args.reaction_id:04d}")
+    else:
+        # Orchestrator: file this attempt under an auto-named subdirectory so
+        # different parameter sets never overwrite each other. The agent does
+        # not choose or pass this — it is derived from the parameters.
+        from nebskill.paths import (reaction_root, effective_backend,
+                                    attempt_name, write_latest)
         import shutil
+        root = reaction_root(args.reaction_id, args.output_dir)
+        attempt = args.tag or attempt_name(
+            effective_backend(args.backend),
+            optimizer=args.optimizer, n_images=args.n_images,
+            spring_constant=args.spring_constant, method=args.method,
+            max_step=args.max_step, max_steps=args.max_steps,
+            seeded=bool(args.initial_path))
+        out_dir = root / attempt
         out_dir.mkdir(parents=True, exist_ok=True)
+        write_latest(root, attempt)          # downstream commands target this
         for f in ("endpoints.json", "relaxed_endpoints.json"):
             src, dst = root / f, out_dir / f
             if src.exists() and not dst.exists():

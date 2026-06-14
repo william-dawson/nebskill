@@ -19,8 +19,8 @@ def main():
     import matplotlib.pyplot as plt
     import numpy as np
 
-    from nebskill.paths import out_dir_for
-    out_dir  = out_dir_for(args.reaction_id, args.output_dir, args.tag)
+    from nebskill.paths import resolve_out_dir
+    out_dir  = resolve_out_dir(args.reaction_id, args.output_dir, args.tag)
     report   = json.loads((out_dir / "report.json").read_text())
     energies = np.array(report["neb_energies"])
     e_rel    = energies - energies[0]

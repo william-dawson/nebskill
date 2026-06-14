@@ -64,8 +64,8 @@ def main():
                              "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
-    from nebskill.paths import out_dir_for
-    out_dir = out_dir_for(args.reaction_id, args.output_dir, args.tag)
+    from nebskill.paths import resolve_out_dir
+    out_dir = resolve_out_dir(args.reaction_id, args.output_dir, args.tag)
 
     # Dispatch to the remote node if configured (and not already a worker).
     from nebskill.dispatch import remote_config, submit
