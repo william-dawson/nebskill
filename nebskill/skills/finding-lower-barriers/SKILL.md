@@ -67,19 +67,29 @@ downstream commands (analyze, monitor, frequencies) operate on the most recent
 attempt without you specifying anything. You decide *which parameters*; the rest
 is handled.
 
-Use every lever in `/nebskill:monitoring-convergence`, harder than the dataset
-did. Productive moves for *finding a lower path* (not just converging one):
+**Important distinction.** An NEB optimizer converges the band to the *nearest*
+minimum energy path from the given starting path. So changing only the
+**optimizer or step size** (FIRE → ODE/BFGS, smaller `--max-step`) does **not**
+find a different saddle — it converges the *same* path more robustly, and on a
+reaction that already converged you'll get an **identical barrier**. Those are
+convergence levers (use them when a run fails to converge), not discovery levers.
+
+To find a **lower** barrier you must change the **path itself** so the band can
+settle into a different basin:
 - **More images** — resolve a corner the 10-image path cut.
-- **ODE optimizer** (`--optimizer ODE`) — best at localizing a tricky saddle.
 - **Warm-start from the MACE path** — `--initial-path <traj.xyz>` seeds the band
   from a previous (e.g. MACE-converged) `neb_trajectory.xyz` instead of
-  interpolating, so the expensive DFT run starts in the lower basin MACE found.
-  This is the core triage→confirm move: scout cheaply with MACE, then confirm
-  the lower path with DFT from that guess.
-- **Vary the spring constant both ways** — softer springs let the band follow a
-  curved valley a stiff band straightened over.
-- **Multiple attempts** from perturbed starting paths — a lower saddle in a
-  different basin won't be found from one initial guess.
+  interpolating, so the DFT run starts in the lower basin MACE found. This is the
+  core triage→confirm move: scout cheaply with MACE, confirm with DFT from there.
+- **Vary the spring constant** — softer springs let the band follow a curved
+  valley a stiff band straightened over.
+- **Multiple attempts** from perturbed / alternative starting paths (e.g. a
+  hypothesized stepwise intermediate) — a lower saddle in a different basin won't
+  be found from one initial guess.
+
+(If a candidate run won't converge, *then* reach for the optimizer/step levers in
+`/nebskill:monitoring-convergence` to land it — but expect the converged barrier
+to be path-determined, not optimizer-determined.)
 
 Background long runs and check on them with `nebskill-monitor --reaction-id N`.
 Once you've tried several parameter sets, `nebskill-summary --reaction-id N`

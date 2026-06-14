@@ -55,6 +55,8 @@ def main():
         "spin":                     endpoints.get("spin", 0),
         "n_images":                 neb_result["n_images"],
         "neb_method":               neb_result["method"],
+        "optimizer":                neb_result.get("optimizer", "FIRE"),
+        "max_step":                 neb_result.get("max_step"),
         "forward_barrier_ev":       round(forward_barrier, 4),
         "forward_barrier_kcal":     round(forward_barrier * EV_TO_KCAL, 3),
         "reverse_barrier_ev":       round(reverse_barrier, 4),
@@ -78,6 +80,10 @@ def main():
     out_path.write_text(json.dumps(report, indent=2))
 
     print(f"Reaction {args.reaction_id} ({report['formula']}) — NEB analysis [{backend}]")
+    print(f"  Optimizer:        {report['optimizer']}"
+          + (f", max_step {report['max_step']}" if report['max_step'] else "")
+          + f"  (phase1 {report['phase1_steps']} steps, "
+            f"phase2 {report['phase2_steps']} steps)")
     print(f"  Forward barrier:  {forward_barrier:.3f} eV  "
           f"({forward_barrier * EV_TO_KCAL:.1f} kcal/mol)")
     print(f"  Reverse barrier:  {reverse_barrier:.3f} eV  "

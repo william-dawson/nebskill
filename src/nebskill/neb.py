@@ -176,12 +176,15 @@ def run_phase(neb: NEB, images: list, fmax: float, max_steps: int,
 
 def _write_neb_result(out_dir: Path, result: dict, n_images: int,
                       method: str, k: float, dft_barrier: float,
+                      optimizer: str = "FIRE", max_step=None,
                       phase1_result: dict | None = None) -> None:
     path = out_dir / "neb_result.json"
     path.write_text(json.dumps({
         "n_images":        n_images,
         "method":          method,
         "spring_constant": k,
+        "optimizer":       optimizer,
+        "max_step":        max_step,
         "dft_barrier_ev":  dft_barrier,
         "phase1":          phase1_result,
         "latest":          result,
@@ -352,7 +355,8 @@ def main():
 
     if not result1["converged"]:
         _write_neb_result(out_dir, result1, n_images, method, k,
-                          relaxed["dft_forward_barrier_ev"])
+                          relaxed["dft_forward_barrier_ev"],
+                          optimizer=optimizer, max_step=max_step)
         print("Phase 1 did not converge — triggering retry (step 4)")
         sys.exit(4)
 
@@ -366,7 +370,9 @@ def main():
                         optimizer=optimizer, max_step=max_step)
 
     _write_neb_result(out_dir, result2, n_images, method, k,
-                      relaxed["dft_forward_barrier_ev"], phase1_result=result1)
+                      relaxed["dft_forward_barrier_ev"],
+                      optimizer=optimizer, max_step=max_step,
+                      phase1_result=result1)
 
     if not result2["converged"]:
         print("Phase 2 did not converge — triggering retry (step 4)")
