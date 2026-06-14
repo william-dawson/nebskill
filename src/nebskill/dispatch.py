@@ -61,12 +61,10 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
         python=cfg["python"],
     )
 
-    # `attempt` is included in the run arguments purely so RemoteManager's
-    # hash (function + args) is distinct for every distinct parameter
-    # combination — including the backend, which may come from config and not
-    # appear in extra_args. Without it, two runs that differ only by a
-    # config-derived setting would collide and the wrong cached result would be
-    # returned. It is otherwise unused by the worker.
+    # Jobs are isolated by a unique dbfile (below), so each dataset holds one
+    # runner. `attempt` is carried in the args only to keep that single runner's
+    # identity stable across re-invocations of the same job (so restore matches).
+    # It is otherwise unused by the worker.
     def _run(module, reaction_id, extra_args, attempt=None):
         import os
         import subprocess
@@ -78,12 +76,22 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
         r = subprocess.run(cmd, capture_output=True, text=True, env=env)
         return {"returncode": r.returncode, "stdout": r.stdout, "stderr": r.stderr}
 
-    # RemoteManager persists run state in a dataset-<hash>.yaml keyed by
-    # function + args and restores it on a fresh invocation from the same cwd:
+    # A RemoteManager Dataset is keyed by its *function*, not its arguments —
+    # every submit() uses the same _run, so without care they would all share
+    # one dataset (one growing list of runners) and ds.results[0] would be the
+    # first runner ever, not ours. We give each logical job its own dataset file
+    # (unique dbfile per module + reaction + attempt), so each dataset holds
+    # exactly one runner: ds.results[0] / ds.runners[0] are unambiguously this
+    # job's, and force only ever touches this job. The dbfile lives in the job's
+    # own output directory, so re-invoking the same job restores its state:
     #   - no prior run / new args -> runs
-    #   - prior succeeded         -> skipped, results reused (no wasted recompute)
+    #   - prior succeeded         -> skipped, result reused (no wasted recompute)
     #   - prior failed/timed out  -> skipped too, UNLESS force=True
     # force is the caller's (the agent's) choice — see the --force flag.
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    dbfile = str(out_dir / f"rm_{module.split('.')[-1]}_{attempt or 'run'}.yaml")
+
     # Stage config overrides into the runner. The worker runs in a separate
     # directory and re-reads config from its own cwd, so without this it would
     # only see the bundled defaults and silently ignore the machine's backend /
@@ -94,7 +102,7 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
     if local_cfg.exists():
         send_paths.append(str(local_cfg.resolve()))
 
-    ds = Dataset(_run, url=url)
+    ds = Dataset(_run, url=url, dbfile=dbfile)   # own dataset file → one runner
     ds.local_dir = str(out_dir)
     ds.append_run(
         {"module": module, "reaction_id": reaction_id,
