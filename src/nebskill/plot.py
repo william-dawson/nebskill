@@ -10,6 +10,8 @@ def main():
     parser = argparse.ArgumentParser(description="Plot NEB energy profile")
     parser.add_argument("--reaction-id", type=int, required=True)
     parser.add_argument("--output-dir",  default=None)
+    parser.add_argument("--tag", default=None,
+                        help="Plot a tagged attempt subdirectory")
     args = parser.parse_args()
 
     import matplotlib
@@ -17,8 +19,8 @@ def main():
     import matplotlib.pyplot as plt
     import numpy as np
 
-    out_dir  = Path(args.output_dir) if args.output_dir else \
-               Path(f"outputs/reaction_{args.reaction_id:04d}")
+    from nebskill.paths import out_dir_for
+    out_dir  = out_dir_for(args.reaction_id, args.output_dir, args.tag)
     report   = json.loads((out_dir / "report.json").read_text())
     energies = np.array(report["neb_energies"])
     e_rel    = energies - energies[0]

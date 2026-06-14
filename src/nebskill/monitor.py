@@ -32,12 +32,14 @@ def main():
         description="Show live NEB progress for a reaction")
     parser.add_argument("--reaction-id", type=int, required=True)
     parser.add_argument("--output-dir", default=None)
+    parser.add_argument("--tag", default=None,
+                        help="Monitor a tagged attempt subdirectory")
     parser.add_argument("--tail", type=int, default=0,
                         help="Show only the last N steps (0 = all)")
     args = parser.parse_args()
 
-    out_dir = Path(args.output_dir) if args.output_dir else \
-              Path(f"outputs/reaction_{args.reaction_id:04d}")
+    from nebskill.paths import out_dir_for
+    out_dir = out_dir_for(args.reaction_id, args.output_dir, args.tag)
     progress_name = f"neb_progress_{args.reaction_id:04d}.jsonl"
 
     text = ""

@@ -14,10 +14,12 @@ def main():
     parser.add_argument("--reaction-id", type=int, required=True)
     parser.add_argument("--config",      default="assets/neb_defaults.yaml")
     parser.add_argument("--output-dir",  default=None)
+    parser.add_argument("--tag", default=None,
+                        help="Analyze a tagged attempt subdirectory")
     args = parser.parse_args()
 
-    out_dir    = Path(args.output_dir) if args.output_dir else \
-                 Path(f"outputs/reaction_{args.reaction_id:04d}")
+    from nebskill.paths import out_dir_for
+    out_dir    = out_dir_for(args.reaction_id, args.output_dir, args.tag)
     neb_result = json.loads((out_dir / "neb_result.json").read_text())
     relaxed    = json.loads((out_dir / "relaxed_endpoints.json").read_text())
     endpoints  = json.loads((out_dir / "endpoints.json").read_text())

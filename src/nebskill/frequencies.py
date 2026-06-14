@@ -55,6 +55,8 @@ def main():
                         help="cm^-1; imaginary modes below this are treated as "
                              "near-zero trans/rot noise, not real saddle modes")
     parser.add_argument("--backend", choices=["mace", "pyscf"], default=None)
+    parser.add_argument("--tag", default=None,
+                        help="Analyze the TS of a tagged attempt subdirectory")
     parser.add_argument("--local", action="store_true",
                         help="Force local execution, skipping RemoteManager dispatch")
     parser.add_argument("--force", action="store_true",
@@ -62,8 +64,8 @@ def main():
                              "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
-    out_dir = Path(args.output_dir) if args.output_dir else \
-              Path(f"outputs/reaction_{args.reaction_id:04d}")
+    from nebskill.paths import out_dir_for
+    out_dir = out_dir_for(args.reaction_id, args.output_dir, args.tag)
 
     # Dispatch to the remote node if configured (and not already a worker).
     from nebskill.dispatch import remote_config, submit

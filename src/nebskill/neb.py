@@ -210,6 +210,10 @@ def main():
                              "interpolating; uses its last n_images frames")
     parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
                         help="Override calculator backend (default from config)")
+    parser.add_argument("--tag", default=None,
+                        help="Namespace this attempt into a subdirectory "
+                             "outputs/reaction_id/<tag>/ so multiple parameter "
+                             "sets for one reaction don't overwrite each other")
     parser.add_argument("--local", action="store_true",
                         help="Force local execution, skipping RemoteManager dispatch")
     parser.add_argument("--force", action="store_true",
@@ -217,9 +221,20 @@ def main():
                              "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
-    out_dir = Path(args.output_dir) if args.output_dir else \
-              Path(f"outputs/reaction_{args.reaction_id:04d}")
+    from nebskill.paths import reaction_root, out_dir_for
+    root    = reaction_root(args.reaction_id, args.output_dir)
+    out_dir = out_dir_for(args.reaction_id, args.output_dir, args.tag)
     progress_name = f"neb_progress_{args.reaction_id:04d}.jsonl"
+
+    # A tagged attempt runs in its own subdir; bring in the shared inputs
+    # (endpoints + relaxed endpoints from relax, which is done once at the root).
+    if args.tag:
+        import shutil
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for f in ("endpoints.json", "relaxed_endpoints.json"):
+            src, dst = root / f, out_dir / f
+            if src.exists() and not dst.exists():
+                shutil.copy2(src, dst)
 
     # Dispatch to the remote node if configured (and not already a worker).
     from nebskill.dispatch import remote_config, submit

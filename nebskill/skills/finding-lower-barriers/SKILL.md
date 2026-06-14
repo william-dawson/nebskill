@@ -61,6 +61,12 @@ A concrete hypothesis tells you which lever to pull.
 
 ## 3 — Attack (aggressive NEB)
 
+**Give each attempt its own `--tag`** so parameter sets don't overwrite each
+other — `nebskill-neb --reaction-id N --optimizer ODE --tag ode` writes to
+`outputs/reaction_N/ode/`. Run the downstream commands with the same tag
+(`nebskill-analyze --reaction-id N --tag ode`, likewise monitor/frequencies) and
+compare `report.json` barriers across tags to see which attempt found the lowest.
+
 Use every lever in `/nebskill:monitoring-convergence`, harder than the dataset
 did. Productive moves for *finding a lower path* (not just converging one):
 - **More images** — resolve a corner the 10-image path cut.

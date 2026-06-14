@@ -11,10 +11,12 @@ def main():
     parser = argparse.ArgumentParser(description="Compute NEB diagnostics")
     parser.add_argument("--reaction-id", type=int, required=True)
     parser.add_argument("--output-dir",  default=None)
+    parser.add_argument("--tag", default=None,
+                        help="Diagnose a tagged attempt subdirectory")
     args = parser.parse_args()
 
-    out_dir         = Path(args.output_dir) if args.output_dir else \
-                      Path(f"outputs/reaction_{args.reaction_id:04d}")
+    from nebskill.paths import out_dir_for
+    out_dir         = out_dir_for(args.reaction_id, args.output_dir, args.tag)
     neb_result_path = out_dir / "neb_result.json"
 
     if not neb_result_path.exists():

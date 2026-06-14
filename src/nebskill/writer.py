@@ -9,10 +9,12 @@ def main():
     parser = argparse.ArgumentParser(description="Write NEB convergence log")
     parser.add_argument("--reaction-id", type=int, required=True)
     parser.add_argument("--output-dir",  default=None)
+    parser.add_argument("--tag", default=None,
+                        help="Write logs for a tagged attempt subdirectory")
     args = parser.parse_args()
 
-    out_dir    = Path(args.output_dir) if args.output_dir else \
-                 Path(f"outputs/reaction_{args.reaction_id:04d}")
+    from nebskill.paths import out_dir_for
+    out_dir    = out_dir_for(args.reaction_id, args.output_dir, args.tag)
     neb_result = json.loads((out_dir / "neb_result.json").read_text())
 
     lines = ["phase\tsteps\tfmax_target\tfmax_final\tconverged\twall_time_s"]
