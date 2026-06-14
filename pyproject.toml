@@ -1,6 +1,6 @@
 [project]
 name = "nebskill"
-version = "0.13.1"
+version = "0.14.0"
 description = "Nudged Elastic Band calculations for reaction barriers using MACE-OFF and Transition1x"
 readme = "README.md"
 requires-python = ">=3.12"

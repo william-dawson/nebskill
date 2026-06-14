@@ -57,6 +57,9 @@ def main():
     parser.add_argument("--backend", choices=["mace", "pyscf"], default=None)
     parser.add_argument("--local", action="store_true",
                         help="Force local execution, skipping RemoteManager dispatch")
+    parser.add_argument("--force", action="store_true",
+                        help="Resubmit even if a prior run for these parameters "
+                             "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
     out_dir = Path(args.output_dir) if args.output_dir else \
@@ -74,7 +77,8 @@ def main():
             if args.source == "neb":
                 send += ["neb_result.json", "neb_trajectory.xyz"]
             sys.exit(submit(remote, "nebskill.frequencies", args.reaction_id, out_dir,
-                            send=send, recv=["frequencies.json"], extra_args=extra))
+                            send=send, recv=["frequencies.json"], extra_args=extra,
+                            force=args.force))
 
     cfg = load_config(args.config)
     if args.backend:

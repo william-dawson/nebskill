@@ -41,7 +41,8 @@ def remote_config():
 def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
            send: list[str], recv: list[str],
            extra_args: list[str] | None = None,
-           progress_file: str | None = None, poll: int = 15) -> int:
+           progress_file: str | None = None, poll: int = 15,
+           force: bool = False) -> int:
     """Submit `python -m module` to the remote node via RemoteManager.
 
     send/recv are filenames relative to out_dir. Input files in `send` are
@@ -76,13 +77,13 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
         return {"returncode": r.returncode, "stdout": r.stdout, "stderr": r.stderr}
 
     # RemoteManager persists run state in a dataset-<hash>.yaml keyed by
-    # function + args and restores it on a fresh invocation from the same cwd.
-    # Recovery semantics we want:
-    #   - no prior run       -> run it
-    #   - prior succeeded    -> skip and reuse results (no wasted DFT recompute)
-    #   - prior failed/timed -> resubmit
-    # Plain run() covers the first two; only a *failed* prior run needs force.
-    # (A blanket force=True would also re-run successful jobs — wrong.)
+    # function + args and restores it on a fresh invocation from the same cwd:
+    #   - no prior run / new args -> runs
+    #   - prior succeeded         -> skipped, results reused (no wasted recompute)
+    #   - prior failed/timed out  -> skipped too, UNLESS force=True
+    # force is the caller's (the agent's) choice: pass it to resubmit a failed
+    # or timed-out run with the same parameters. A blanket force would also
+    # re-run successful jobs, so it is opt-in, not automatic.
     ds = Dataset(_run, url=url)
     ds.local_dir = str(out_dir)
     ds.append_run(
@@ -91,8 +92,7 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
         extra_files_send=[str(out_dir / f) for f in send],
         extra_files_recv=list(recv),
     )
-    prior_failed = bool(getattr(ds.runners[0], "is_failed", None))
-    ds.run(force=prior_failed)   # asynchronous: returns after submission
+    ds.run(force=force)   # asynchronous: returns after submission
 
     if progress_file:
         # Live poll loop. Tail the worker's progress file from its run

@@ -83,6 +83,9 @@ def main():
                         help="Override calculator backend (default from config)")
     parser.add_argument("--local", action="store_true",
                         help="Force local execution, skipping RemoteManager dispatch")
+    parser.add_argument("--force", action="store_true",
+                        help="Resubmit even if a prior run for these parameters "
+                             "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
     out_dir = Path(args.output_dir) if args.output_dir else \
@@ -99,7 +102,7 @@ def main():
             sys.exit(submit(remote, "nebskill.relax", args.reaction_id, out_dir,
                             send=["endpoints.json"],
                             recv=["relaxed_endpoints.json", "relax_failure.json"],
-                            extra_args=extra))
+                            extra_args=extra, force=args.force))
 
     cfg       = load_config(args.config)
     if args.backend:

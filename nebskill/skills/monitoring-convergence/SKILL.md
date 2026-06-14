@@ -128,6 +128,12 @@ Read `outputs/reaction_{id:04d}/neb_result.json`.
 - Not converged, attempts remaining → go back to 4.1
 - Attempts exhausted → write failure report and stop
 
+**A retry that changes a parameter** (`--n-images`, `--optimizer`, …) is a new
+run and submits normally. **Re-running the exact same command** after a crash or
+SLURM timeout will be skipped by RemoteManager as already-attempted — add
+`--force` to resubmit it. Only use `--force` for that recovery case; never to
+re-run a job that already succeeded.
+
 ---
 
 ## Failure report
