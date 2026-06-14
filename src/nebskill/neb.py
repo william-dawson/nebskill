@@ -189,7 +189,7 @@ def _write_neb_result(out_dir: Path, result: dict, n_images: int,
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run two-phase NEB with MACE-OFF")
+    parser = argparse.ArgumentParser(description="Run two-phase NEB with the configured calculator")
     parser.add_argument("--reaction-id",     type=int,   required=True)
     parser.add_argument("--config",          default="assets/neb_defaults.yaml")
     parser.add_argument("--output-dir",      default=None)
@@ -233,11 +233,12 @@ def main():
         # different parameter sets never overwrite each other. The agent does
         # not choose or pass this — it is derived from the parameters.
         from nebskill.paths import (reaction_root, effective_backend,
-                                    attempt_name, write_latest)
+                                    attempt_name, write_latest, relax_dirname)
         import shutil
-        root = reaction_root(args.reaction_id, args.output_dir)
+        root        = reaction_root(args.reaction_id, args.output_dir)
+        backend_eff = effective_backend(args.backend)
         attempt = args.tag or attempt_name(
-            effective_backend(args.backend),
+            backend_eff,
             optimizer=args.optimizer, n_images=args.n_images,
             spring_constant=args.spring_constant, method=args.method,
             max_step=args.max_step, max_steps=args.max_steps,
@@ -245,10 +246,15 @@ def main():
         out_dir = root / attempt
         out_dir.mkdir(parents=True, exist_ok=True)
         write_latest(root, attempt)          # downstream commands target this
-        for f in ("endpoints.json", "relaxed_endpoints.json"):
-            src, dst = root / f, out_dir / f
-            if src.exists() and not dst.exists():
-                shutil.copy2(src, dst)
+        # endpoints come from the reaction root; relaxed endpoints from the
+        # matching backend's relax directory (so a pyscf NEB uses pyscf-relaxed
+        # endpoints, never mace's).
+        ep_src = root / "endpoints.json"
+        if ep_src.exists() and not (out_dir / "endpoints.json").exists():
+            shutil.copy2(ep_src, out_dir / "endpoints.json")
+        rel_src = root / relax_dirname(backend_eff) / "relaxed_endpoints.json"
+        if rel_src.exists() and not (out_dir / "relaxed_endpoints.json").exists():
+            shutil.copy2(rel_src, out_dir / "relaxed_endpoints.json")
 
     # Dispatch to the remote node if configured (and not already a worker).
     from nebskill.dispatch import remote_config, submit
@@ -275,7 +281,7 @@ def main():
                                   progress_name],
                             extra_args=extra,
                             progress_file=progress_name,
-                            force=args.force))
+                            force=args.force, attempt=out_dir.name))
 
     cfg     = load_config(args.config)
     if args.backend:

@@ -32,7 +32,8 @@ def main():
 
     fig, ax = plt.subplots(figsize=(8, 5))
     x = np.arange(n)
-    ax.plot(x, e_rel, "o-", color="steelblue", lw=2, ms=7, label="MACE-OFF NEB")
+    ax.plot(x, e_rel, "o-", color="steelblue", lw=2, ms=7,
+            label=f"{report.get('backend', 'NEB')} NEB")
     ax.plot(ts_idx, e_rel[ts_idx], "*", color="red", ms=16, zorder=5,
             label=f"TS (image {ts_idx})")
     ax.annotate(

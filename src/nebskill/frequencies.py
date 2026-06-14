@@ -64,7 +64,7 @@ def main():
                              "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
-    from nebskill.paths import resolve_out_dir
+    from nebskill.paths import resolve_out_dir, effective_backend
     out_dir = resolve_out_dir(args.reaction_id, args.output_dir, args.tag)
 
     # Dispatch to the remote node if configured (and not already a worker).
@@ -78,9 +78,12 @@ def main():
             send = ["endpoints.json"]
             if args.source == "neb":
                 send += ["neb_result.json", "neb_trajectory.xyz"]
+            be = effective_backend(args.backend)
+            result_name = f"frequencies_{be}_{args.source}.json"
+            attempt = f"{out_dir.name}_freq_{be}_{args.source}"
             sys.exit(submit(remote, "nebskill.frequencies", args.reaction_id, out_dir,
-                            send=send, recv=["frequencies.json"], extra_args=extra,
-                            force=args.force))
+                            send=send, recv=[result_name], extra_args=extra,
+                            force=args.force, attempt=attempt))
 
     cfg = load_config(args.config)
     if args.backend:
@@ -136,7 +139,7 @@ def main():
         "verdict":          verdict,
         "imag_cutoff_cm":   args.imag_cutoff,
     }
-    out_path = out_dir / "frequencies.json"
+    out_path = out_dir / f"frequencies_{backend}_{args.source}.json"
     out_path.write_text(json.dumps(result, indent=2))
 
     print(f"  imaginary modes (> {args.imag_cutoff} cm^-1): {n_imag}  {sorted(imag)}")

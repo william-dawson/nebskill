@@ -1,15 +1,16 @@
 ---
 name: relaxing-endpoints
 description: >
-  Relaxes reactant and product endpoint structures with MACE-OFF on a GPU
-  compute node. Mandatory — Transition1x endpoints are not local minima.
-  Use after loading-reaction and before running-neb.
+  Relaxes reactant and product endpoint structures with the configured
+  calculator (MACE-OFF or PySCF). Mandatory — Transition1x endpoints are not
+  local minima. Use after loading-reaction and before running-neb.
 allowed-tools: Bash Read Write
 ---
 
-Geometrically relaxes both endpoint structures using MACE-OFF. This step is
-mandatory — MD snapshots from Transition1x are not at local minima and will
-cause poor NEB convergence if used directly.
+Geometrically relaxes both endpoint structures with the configured calculator.
+This step is mandatory — MD snapshots from Transition1x are not at local minima
+and will cause poor NEB convergence if used directly. The relaxed minimum is
+backend-specific, so each backend's result is kept separately.
 
 ## Script
 
@@ -34,17 +35,18 @@ For each endpoint (reactant, then product), using a single shared calculator:
 2. If FIRE does not converge: switch to **BFGS**, max 500 steps, same fmax
 3. If BFGS also fails: write `relax_failure.json` and exit with code 3
 
-Both endpoints use the same MACE-OFF calculator instance — model loads once.
+Both endpoints use the same calculator instance — the model loads once.
 
 ## Output: relaxed_endpoints.json
 
 ```json
 {
   "formula": "C4H8O",
-  "mace_model_size": "medium",
+  "backend": "mace",
+  "model_size": "medium",
   "reactant": {
     "positions": [[...], ...],
-    "energy_mace_ev": -123.45,
+    "energy_ev": -123.45,
     "fmax_ev_per_ang": 0.008,
     "converged": true,
     "optimizer_used": "FIRE"
@@ -55,7 +57,8 @@ Both endpoints use the same MACE-OFF calculator instance — model loads once.
 
 ## Notes
 
-- MACE-OFF energies will differ slightly from Transition1x DFT values — expected
+- MACE energies differ slightly from the Transition1x DFT reference; PySCF at
+  ωB97X/6-31G(d) reproduces it.
 - `remove_rotation_and_translation` is NOT applied here (only during NEB)
 
-See `${CLAUDE_PLUGIN_ROOT}/references/mace_off_usage.md`.
+References: `${CLAUDE_PLUGIN_ROOT}/references/mace_off_usage.md` (MACE backend).

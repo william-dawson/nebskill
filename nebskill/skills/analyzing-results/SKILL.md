@@ -28,7 +28,7 @@ Reads `neb_result.json` and `relaxed_endpoints.json`. Computes:
 - **Forward barrier**: `E_TS − E_reactant` (eV and kcal/mol)
 - **Reverse barrier**: `E_TS − E_product` (eV and kcal/mol)
 - **TS image index**: image with maximum energy
-- **MACE-OFF vs DFT**: error relative to Transition1x ωB97x/6-31G* reference
+- **Our barrier vs dataset DFT**: deviation from the Transition1x ωB97X/6-31G(d) reference (negative = we found a lower barrier)
 
 Writes `outputs/reaction_{id:04d}/report.json`.
 
@@ -56,7 +56,7 @@ Writes `outputs/reaction_{id:04d}/energy_profile.png`:
 After the three scripts complete, summarise for the user:
 
 1. Forward and reverse barriers in eV and kcal/mol
-2. How MACE-OFF compares to the Transition1x DFT reference (error and %)
+2. How our barrier compares to the Transition1x DFT reference (error and %)
 3. Where the transition state sits (image index out of total)
 4. Any convergence difficulties and how they were resolved
 5. Output files written to `outputs/reaction_{id:04d}/`

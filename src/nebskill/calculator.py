@@ -1,7 +1,7 @@
 """Calculator backends for nebskill.
 
 Two backends, selected by `calculator.backend` in the config:
-  - mace  : MACE-OFF23 ML potential (fast, the default)
+  - mace  : MACE-OFF23 ML potential
   - pyscf : DFT at the dataset's level of theory (ωB97X/6-31G(d)) for
             reproducing / probing the Transition1x reference values
 

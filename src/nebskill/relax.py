@@ -1,4 +1,4 @@
-"""Relax reactant and product endpoints with MACE-OFF: FIRE then BFGS."""
+"""Relax reactant and product endpoints with the configured calculator: FIRE then BFGS."""
 import argparse
 import json
 import sys
@@ -63,7 +63,7 @@ def relax_structure(atoms: Atoms, fmax: float, fire_max_steps: int,
         "atomic_numbers":  atoms.get_atomic_numbers().tolist(),
         "pbc":             bool(atoms.pbc.any()),
         "cell":            atoms.get_cell().tolist(),
-        "energy_mace_ev":  energy,
+        "energy_ev":  energy,
         "fmax_ev_per_ang": fmax_final,
         "converged":       True,
         "optimizer_used":  optimizer_used,
@@ -73,7 +73,7 @@ def relax_structure(atoms: Atoms, fmax: float, fire_max_steps: int,
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Relax NEB endpoints with MACE-OFF")
+    parser = argparse.ArgumentParser(description="Relax NEB endpoints with the configured calculator")
     parser.add_argument("--reaction-id", type=int, required=True)
     parser.add_argument("--config", default="assets/neb_defaults.yaml")
     parser.add_argument("--output-dir", default=None)
@@ -88,8 +88,24 @@ def main():
                              "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
-    out_dir = Path(args.output_dir) if args.output_dir else \
-              Path(f"outputs/reaction_{args.reaction_id:04d}")
+    import os
+    from nebskill.paths import reaction_root, relax_dirname, effective_backend
+    backend_eff = effective_backend(args.backend)
+
+    if os.environ.get("NEBSKILL_WORKER"):
+        # Worker: run where dispatch placed us.
+        out_dir = Path(args.output_dir) if args.output_dir else \
+                  Path(f"outputs/reaction_{args.reaction_id:04d}")
+    else:
+        # Orchestrator: relaxed endpoints are backend-specific, so they live in
+        # their own per-backend directory and never clobber another backend's.
+        import shutil
+        root    = reaction_root(args.reaction_id, args.output_dir)
+        out_dir = root / relax_dirname(backend_eff)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        src, dst = root / "endpoints.json", out_dir / "endpoints.json"
+        if src.exists() and not dst.exists():
+            shutil.copy2(src, dst)
 
     # Dispatch to the remote node if configured (and not already a worker).
     from nebskill.dispatch import remote_config, submit
@@ -99,10 +115,11 @@ def main():
             extra = ["--fmax", str(args.fmax)] if args.fmax else []
             if args.backend:
                 extra += ["--backend", args.backend]
+            attempt = relax_dirname(backend_eff) + (f"_fmax{args.fmax}" if args.fmax else "")
             sys.exit(submit(remote, "nebskill.relax", args.reaction_id, out_dir,
                             send=["endpoints.json"],
                             recv=["relaxed_endpoints.json", "relax_failure.json"],
-                            extra_args=extra, force=args.force))
+                            extra_args=extra, force=args.force, attempt=attempt))
 
     cfg       = load_config(args.config)
     if args.backend:
@@ -167,9 +184,9 @@ def main():
     out_path = out_dir / "relaxed_endpoints.json"
     out_path.write_text(json.dumps(output, indent=2))
 
-    print(f"\nRelaxed energies (MACE-OFF):")
-    print(f"  Reactant: {results['reactant']['energy_mace_ev']:.4f} eV")
-    print(f"  Product:  {results['product']['energy_mace_ev']:.4f} eV")
+    print(f"\nRelaxed energies ({backend}):")
+    print(f"  Reactant: {results['reactant']['energy_ev']:.4f} eV")
+    print(f"  Product:  {results['product']['energy_ev']:.4f} eV")
     print(f"  DFT forward barrier reference: {endpoints['dft_forward_barrier_ev']:.3f} eV")
     print(f"Relaxed endpoints written to {out_path}")
 

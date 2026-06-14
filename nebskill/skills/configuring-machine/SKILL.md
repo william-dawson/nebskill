@@ -39,16 +39,18 @@ Claude runs and where outputs are collected.
 
 ## 2 — Choose the calculator backend
 
-Ask the user which backend this project should use:
+Ask the user which backend this project should use — present them as equals,
+chosen by goal, not by which is "better":
 
 > "Which calculator should NEB calculations use here?
->   - **mace** — MACE-OFF23 ML potential. Fast; good for screening many
->     reactions. (default)
->   - **pyscf** — DFT at the dataset's level of theory (ωB97X/6-31G(d)).
->     Reproduces / probes the Transition1x reference barriers, but is much
->     slower (a full NEB is thousands of DFT gradient evaluations)."
+>   - **mace** — MACE-OFF23 ML potential. An approximate force field; a few
+>     seconds per force evaluation. Good for exploring many reactions.
+>   - **pyscf** — DFT at the dataset's level of theory (ωB97X/6-31G(d)). The
+>     reference quality, directly comparable to Transition1x; a full NEB is many
+>     DFT gradient evaluations."
 
-This choice is written to `neb_local.yaml` in step 7 and used by every run.
+Neither is the default — ask. The choice is written to `neb_local.yaml` in
+step 7 and used by every run.
 It also shapes step 4:
 - **mace** → the PyTorch build matters (GPU acceleration); do step 4.
 - **pyscf** → MACE/torch isn't used for compute, so step 4 can install CPU

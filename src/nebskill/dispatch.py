@@ -37,7 +37,7 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
            send: list[str], recv: list[str],
            extra_args: list[str] | None = None,
            progress_file: str | None = None,
-           force: bool = False) -> int:
+           force: bool = False, attempt: str | None = None) -> int:
     """Submit `python -m module` to the remote node via RemoteManager and block
     until it finishes.
 
@@ -61,7 +61,13 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
         python=cfg["python"],
     )
 
-    def _run(module, reaction_id, extra_args):
+    # `attempt` is included in the run arguments purely so RemoteManager's
+    # hash (function + args) is distinct for every distinct parameter
+    # combination — including the backend, which may come from config and not
+    # appear in extra_args. Without it, two runs that differ only by a
+    # config-derived setting would collide and the wrong cached result would be
+    # returned. It is otherwise unused by the worker.
+    def _run(module, reaction_id, extra_args, attempt=None):
         import os
         import subprocess
         import sys
@@ -92,7 +98,7 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
     ds.local_dir = str(out_dir)
     ds.append_run(
         {"module": module, "reaction_id": reaction_id,
-         "extra_args": extra_args or []},
+         "extra_args": extra_args or [], "attempt": attempt},
         extra_files_send=send_paths,
         extra_files_recv=list(recv),
     )

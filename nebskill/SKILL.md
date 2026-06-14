@@ -2,22 +2,22 @@
 name: nebskill
 description: >
   Runs Nudged Elastic Band (NEB) calculations to find minimum energy paths
-  and reaction barriers for organic molecules. Uses MACE-OFF23 as the
-  interatomic potential and sources atomic configurations from the
-  Transition1x dataset. Activates when the user asks about transition states,
-  reaction barriers, minimum energy paths, activation energies, or NEB
-  calculations for organic molecules.
+  and reaction barriers for organic molecules. The force calculator is either
+  the MACE-OFF23 ML potential or PySCF DFT (ωB97X/6-31G(d)) — chosen at setup —
+  sourcing atomic configurations from the Transition1x dataset. Activates when
+  the user asks about transition states, reaction barriers, minimum energy
+  paths, activation energies, or NEB calculations for organic molecules.
 license: MIT
 compatibility: >
   Requires uv (https://docs.astral.sh/uv/getting-started/installation/).
-  All Python dependencies install automatically via uv. GPU recommended;
-  CPU supported but slow for MACE-OFF. Internet access required for model
-  and dataset downloads on first use.
+  All Python dependencies install automatically via uv. Hardware depends on the
+  backend: MACE benefits from a GPU, PySCF DFT runs on CPU. Internet access
+  required for model and dataset downloads on first use.
 metadata:
   author: knomura
   version: "0.1.0"
   dataset: transition1x
-  potential: mace-off
+  backends: mace-off, pyscf
 allowed-tools: Bash Read Write
 ---
 
@@ -25,8 +25,9 @@ allowed-tools: Bash Read Write
 
 Finds the minimum energy path (MEP) and activation barrier between reactant
 and product configurations using the Nudged Elastic Band method. Reaction
-endpoints come from the Transition1x dataset (~20k organic reactions with DFT
-reference data). MACE-OFF23 handles force evaluations.
+endpoints come from the Transition1x dataset (~10k organic reactions with DFT
+reference data). The configured calculator — the MACE-OFF23 ML potential or
+PySCF DFT — handles force evaluations.
 
 Background reading available in `${CLAUDE_PLUGIN_ROOT}/references/`:
 `neb_method.md`, `mace_off_usage.md`, `transition1x_schema.md`
@@ -84,8 +85,9 @@ active configuration:
 
 | Parameter | Value | Source |
 |---|---|---|
-| Calculator backend | mace | neb_local.yaml (chosen at setup) |
-| MACE-OFF model size | medium | default |
+| Calculator backend | mace or pyscf | neb_local.yaml (chosen at setup) |
+| MACE model size (mace backend) | medium | default |
+| DFT level (pyscf backend) | ωB97X/6-31G(d) | default |
 | NEB images | auto | default |
 | Spring constant k | 0.1 eV/Å | default |
 | Phase 1 fmax | 0.5 eV/Å | default |
@@ -129,8 +131,8 @@ and neb commands automatically submit a job via RemoteManager when
 
 5. **Analyze & report** — run `nebskill-analyze`, `nebskill-plot`, `nebskill-writer`
    - See `/nebskill:analyzing-results`
-   - Report: forward and reverse barriers in eV and kcal/mol, MACE-OFF vs DFT
-     error, location of the transition state image
+   - Report: forward and reverse barriers in eV and kcal/mol, our barrier vs
+     the dataset's DFT reference, location of the transition state image
 
 ---
 
@@ -140,7 +142,7 @@ After all steps complete, give the user a plain-language summary:
 
 - Forward barrier (eV and kcal/mol)
 - Reverse barrier (eV and kcal/mol)
-- How MACE-OFF compares to the Transition1x DFT reference (error in eV and %)
+- How our barrier compares to the Transition1x DFT reference (error in eV and %)
 - Where the transition state sits (image index out of total)
 - Any convergence difficulties and how they were resolved
 - Output files written to `outputs/reaction_{id:04d}/`

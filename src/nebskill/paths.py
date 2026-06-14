@@ -25,6 +25,13 @@ def reaction_root(reaction_id: int, output_dir: str | None = None) -> Path:
     return Path(output_dir) if output_dir else Path(f"outputs/reaction_{reaction_id:04d}")
 
 
+def relax_dirname(backend: str) -> str:
+    """Relaxation depends on the backend (different PES, different minimum), so
+    each backend's relaxed endpoints live in their own directory and never
+    overwrite each other."""
+    return f"relax_{backend}"
+
+
 def effective_backend(cli_backend: str | None) -> str:
     """Backend the run will actually use: CLI override, else neb_local.yaml,
     else the bundled default (mace). Resolved here so the attempt name reflects

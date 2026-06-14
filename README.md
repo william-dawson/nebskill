@@ -1,11 +1,12 @@
 # nebskill
 
 A Claude Code plugin for running Nudged Elastic Band (NEB) calculations on
-organic molecules using the Transition1x dataset. Two calculator backends:
+organic molecules using the Transition1x dataset. Two calculator backends,
+chosen at setup by goal:
 
-- **MACE-OFF23** (default) — fast ML interatomic potential
-- **PySCF** — DFT at the dataset's level of theory (ωB97X/6-31G(d)) for
-  reproducing or improving on the published Transition1x barriers
+- **MACE-OFF23** — ML interatomic potential, for exploring many reactions
+- **PySCF** — DFT at the dataset's level of theory (ωB97X/6-31G(d)), the
+  reference quality, for reproducing or improving on the published barriers
 
 ## Install
 
@@ -63,4 +64,4 @@ The skills run in pipeline order:
 
 - [Claude Code](https://claude.ai/code)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
-- GPU recommended (CPU supported but slow for MACE-OFF)
+- Hardware depends on the backend: MACE benefits from a GPU; PySCF DFT runs on CPU

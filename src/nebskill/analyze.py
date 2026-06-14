@@ -1,4 +1,4 @@
-"""Compute barriers and MACE-OFF vs DFT comparison. Writes report.json."""
+"""Compute barriers and our-vs-dataset-DFT comparison. Writes report.json."""
 import argparse
 import json
 import sys
