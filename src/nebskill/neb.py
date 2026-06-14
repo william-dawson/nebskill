@@ -106,15 +106,14 @@ def make_optimizer(neb, optimizer: str, max_step):
 
 def run_phase(neb: NEB, images: list, fmax: float, max_steps: int,
               phase: int, traj_path: Path, append_traj: bool,
-              optimizer: str = "FIRE", max_step=None) -> dict:
+              progress_path: Path, optimizer: str = "FIRE", max_step=None) -> dict:
     t0        = time.monotonic()
     opt       = make_optimizer(neb, optimizer, max_step)
 
-    # Per-step progress trace. Written live (line-buffered + flush) so a long
-    # run can be followed by tailing neb_progress.jsonl. The callback reads the
-    # NEB's cached residual force — get_residual() does NOT trigger a recompute,
-    # so this adds no force/DFT evaluations.
-    progress_path = traj_path.parent / "neb_progress.jsonl"
+    # Per-step progress trace, written live (line-buffered + flush). Retrieved
+    # on demand by `nebskill-monitor`. The callback reads the NEB's cached
+    # residual force — get_residual() does NOT trigger a recompute, so this
+    # adds no force/DFT evaluations.
     progress_fh = open(progress_path, "a" if append_traj else "w", buffering=1)
 
     def _log_progress():
@@ -220,6 +219,7 @@ def main():
 
     out_dir = Path(args.output_dir) if args.output_dir else \
               Path(f"outputs/reaction_{args.reaction_id:04d}")
+    progress_name = f"neb_progress_{args.reaction_id:04d}.jsonl"
 
     # Dispatch to the remote node if configured (and not already a worker).
     from nebskill.dispatch import remote_config, submit
@@ -243,9 +243,9 @@ def main():
             sys.exit(submit(remote, "nebskill.neb", args.reaction_id, out_dir,
                             send=send,
                             recv=["neb_result.json", "neb_trajectory.xyz",
-                                  "neb_progress.jsonl"],
+                                  progress_name],
                             extra_args=extra,
-                            progress_file="neb_progress.jsonl",
+                            progress_file=progress_name,
                             force=args.force))
 
     cfg     = load_config(args.config)
@@ -304,13 +304,15 @@ def main():
         print("  Running IDPP interpolation...")
         neb.interpolate("idpp")
 
-    traj_path = out_dir / "neb_trajectory.xyz"
+    traj_path     = out_dir / "neb_trajectory.xyz"
+    progress_path = out_dir / progress_name
 
     print(f"  Phase 1: standard NEB → fmax < {neb_cfg['phase1_fmax']} eV/Å")
     result1 = run_phase(neb, images,
                         fmax=float(neb_cfg["phase1_fmax"]),
                         max_steps=int(neb_cfg["phase1_max_steps"]),
                         phase=1, traj_path=traj_path, append_traj=False,
+                        progress_path=progress_path,
                         optimizer=optimizer, max_step=max_step)
 
     if not result1["converged"]:
@@ -325,6 +327,7 @@ def main():
                         fmax=float(neb_cfg["phase2_fmax"]),
                         max_steps=int(neb_cfg["phase2_max_steps"]),
                         phase=2, traj_path=traj_path, append_traj=True,
+                        progress_path=progress_path,
                         optimizer=optimizer, max_step=max_step)
 
     _write_neb_result(out_dir, result2, n_images, method, k,

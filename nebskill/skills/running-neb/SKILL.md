@@ -32,22 +32,24 @@ a warm start that drops the run into a path already found. It uses the file's
 last `n_images` frames; the endpoints are replaced with the relaxed reactant and
 product.
 
-## Watch progress live
+## Watch progress
 
-The run writes `outputs/reaction_{id:04d}/neb_progress.jsonl` — one JSON line per
-optimizer step (`phase`, `step`, `fmax`, `fmax_target`, `barrier_est_ev`,
-`ts_image`, `elapsed_s`), flushed immediately.
+The run is quiet while it works (no streaming, so concurrent runs don't
+interleave output). Each optimizer step is logged to a per-reaction file
+`neb_progress_{id:04d}.jsonl` (`phase`, `step`, `fmax`, `fmax_target`,
+`barrier_est_ev`, `ts_image`, `elapsed_s`).
 
 For long runs (especially the **pyscf** backend, which can take hours), run the
-command in the **background**. There are two ways to watch:
+command in the **background**, then check on it whenever you like with:
 
-- **Streamed output** — a dispatched run polls the job and prints `[progress]`
-  lines (one per optimizer step) to its own stdout as it goes, so reading the
-  backgrounded command's output shows convergence live. No extra setup.
-- **Tail the file** for a local run:
-  ```bash
-  tail -f outputs/reaction_{id:04d}/neb_progress.jsonl
-  ```
+```bash
+nebskill-monitor --reaction-id INT          # all steps so far
+nebskill-monitor --reaction-id INT --tail 20
+```
+
+`nebskill-monitor` retrieves that reaction's progress file from the running job
+(via RemoteManager) and prints the per-step trace plus a one-line latest-step
+summary. It works while the job runs and after it finishes.
 
 If the trace shows a stall — fmax plateauing well above target, fmax oscillating,
 or `ts_image` wandering without the barrier settling — stop the run and re-launch

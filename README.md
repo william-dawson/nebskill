@@ -42,7 +42,8 @@ The skills run in pipeline order:
 - **`/nebskill:relaxing-endpoints`** — relax reactant and product with the
   chosen calculator.
 - **`/nebskill:running-neb`** — two-phase NEB (standard then CI-NEB) to find the
-  minimum energy path and barrier; writes a live progress log.
+  minimum energy path and barrier; logs per-step progress retrievable with
+  `nebskill-monitor`.
 - **`/nebskill:monitoring-convergence`** — diagnose a non-converged NEB and
   retry with adjusted levers (images, spring constant, optimizer, step size).
 - **`/nebskill:analyzing-results`** — compute barriers, plot the energy profile,

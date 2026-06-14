@@ -23,9 +23,9 @@ nebskill-diagnose --reaction-id INT
 
 Read `outputs/reaction_{id:04d}/diagnostics.json` in full.
 
-Also read `outputs/reaction_{id:04d}/neb_progress.jsonl` — one line per optimizer
-step (`step`, `fmax`, `barrier_est_ev`, `ts_image`, `elapsed_s`). The per-step
-trace tells you *how* it failed, which the final snapshot can't:
+Also get the per-step trace with `nebskill-monitor --reaction-id INT` (one line
+per optimizer step: `step`, `fmax`, `barrier_est_ev`, `ts_image`, `elapsed_s`).
+It tells you *how* it failed, which the final snapshot can't:
 - **fmax plateau** — fmax flat over many steps, well above target → the band is
   stuck; reach for a smaller step or the ODE optimizer, not a geometry change.
 - **fmax oscillation** — fmax bouncing up and down → step too large; lower it.

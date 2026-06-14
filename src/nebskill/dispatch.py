@@ -8,20 +8,14 @@ submitted job re-invokes the same module on the remote node in worker mode
 
 If no remote config is present, the step runs in-process.
 """
+import json
 import os
 import sys
-import time
 from pathlib import Path
 
 import yaml
 
 REMOTE_CFG = "nebskill_remote.yaml"
-
-
-def _all_finished(ds) -> bool:
-    """all_finished is a bool property in some versions, a method in others."""
-    a = ds.all_finished
-    return a() if callable(a) else bool(a)
 
 
 def remote_config():
@@ -41,18 +35,19 @@ def remote_config():
 def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
            send: list[str], recv: list[str],
            extra_args: list[str] | None = None,
-           progress_file: str | None = None, poll: int = 15,
+           progress_file: str | None = None,
            force: bool = False) -> int:
-    """Submit `python -m module` to the remote node via RemoteManager.
+    """Submit `python -m module` to the remote node via RemoteManager and block
+    until it finishes.
 
     send/recv are filenames relative to out_dir. Input files in `send` are
     staged into the job directory; the worker runs with --output-dir . so it
     reads and writes there; files in `recv` are fetched back into out_dir.
 
-    If progress_file is given, the run is submitted asynchronously and a poll
-    loop tails that file from the runner's working directory (via the
-    RemoteManager connection) every `poll` seconds, printing new lines so a
-    backgrounded invocation streams live convergence progress to the agent.
+    If progress_file is given, a small run_meta.json is written into out_dir
+    recording the job's working directory and connection, so `nebskill-monitor`
+    can retrieve that file's live contents on demand. The run itself does not
+    print progress (so concurrent runs don't interleave output).
 
     Returns the worker's exit code.
     """
@@ -81,9 +76,7 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
     #   - no prior run / new args -> runs
     #   - prior succeeded         -> skipped, results reused (no wasted recompute)
     #   - prior failed/timed out  -> skipped too, UNLESS force=True
-    # force is the caller's (the agent's) choice: pass it to resubmit a failed
-    # or timed-out run with the same parameters. A blanket force would also
-    # re-run successful jobs, so it is opt-in, not automatic.
+    # force is the caller's (the agent's) choice — see the --force flag.
     ds = Dataset(_run, url=url)
     ds.local_dir = str(out_dir)
     ds.append_run(
@@ -94,28 +87,22 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
     )
     ds.run(force=force)   # asynchronous: returns after submission
 
+    # Record where the job is running so nebskill-monitor can fetch the live
+    # progress file. Best-effort: a failure here must not affect the run.
     if progress_file:
-        # Live poll loop. Tail the worker's progress file from its run
-        # directory over the connection (works for shared or remote FS). A
-        # failed/timed-out runner also reports finished, so this can't hang.
-        runner = ds.runners[0]
-        printed = 0
-        while not _all_finished(ds):
-            time.sleep(poll)
-            run_dir = getattr(runner, "run_dir", None) or getattr(runner, "remote_dir", None)
-            if not run_dir:
-                continue
-            try:
-                res = url.cmd(f"cat {run_dir}/{progress_file} 2>/dev/null")
-                lines = (getattr(res, "stdout", "") or "").splitlines()
-                for ln in lines[printed:]:
-                    print(f"[progress] {ln}", flush=True)
-                printed = len(lines)
-            except Exception:
-                pass  # progress is best-effort; never let it break the run
-    else:
-        ds.wait()
+        try:
+            runner = ds.runners[0]
+            run_dir = (getattr(runner, "run_dir", None)
+                       or getattr(runner, "remote_dir", None))
+            (out_dir / "run_meta.json").write_text(json.dumps({
+                "host":          cfg["host"],
+                "run_dir":       run_dir,
+                "progress_file": progress_file,
+            }, indent=2))
+        except Exception:
+            pass
 
+    ds.wait()
     ds.fetch_results()
 
     result = ds.results[0]
