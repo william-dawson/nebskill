@@ -16,6 +16,7 @@ from pathlib import Path
 import yaml
 
 REMOTE_CFG = "nebskill_remote.yaml"
+LOCAL_CFG = "neb_local.yaml"
 
 
 def remote_config():
@@ -77,12 +78,22 @@ def submit(cfg: dict, module: str, reaction_id: int, out_dir: Path,
     #   - prior succeeded         -> skipped, results reused (no wasted recompute)
     #   - prior failed/timed out  -> skipped too, UNLESS force=True
     # force is the caller's (the agent's) choice — see the --force flag.
+    # Stage config overrides into the runner. The worker runs in a separate
+    # directory and re-reads config from its own cwd, so without this it would
+    # only see the bundled defaults and silently ignore the machine's backend /
+    # charge-spin / parameter choices in neb_local.yaml. Sending it makes the
+    # worker's load_config() merge exactly as a local run does.
+    send_paths = [str(out_dir / f) for f in send]
+    local_cfg = Path(LOCAL_CFG)
+    if local_cfg.exists():
+        send_paths.append(str(local_cfg.resolve()))
+
     ds = Dataset(_run, url=url)
     ds.local_dir = str(out_dir)
     ds.append_run(
         {"module": module, "reaction_id": reaction_id,
          "extra_args": extra_args or []},
-        extra_files_send=[str(out_dir / f) for f in send],
+        extra_files_send=send_paths,
         extra_files_recv=list(recv),
     )
     ds.run(force=force)   # asynchronous: returns after submission
