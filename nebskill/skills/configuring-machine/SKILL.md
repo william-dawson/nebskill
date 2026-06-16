@@ -135,14 +135,21 @@ Confirm before installing.
 
 ## 5 — Install nebskill with uv
 
-The project pyproject.toml is just:
+The project pyproject.toml is just (pick the dependency line by backend):
 ```toml
 [project]
 name = "neb-project"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["nebskill @ git+https://github.com/william-dawson/nebskill.git"]
+# mace backend — pulls in PyTorch (~2 GB):
+dependencies = ["nebskill[mace] @ git+https://github.com/william-dawson/nebskill.git"]
+# orca backend — no PyTorch, much lighter install:
+# dependencies = ["nebskill @ git+https://github.com/william-dawson/nebskill.git"]
 ```
+
+MACE needs PyTorch; ORCA needs none of it. Use the **plain** `nebskill` (no
+`[mace]`) for an ORCA-only machine — the install is far smaller and the PyTorch
+index step below doesn't apply.
 
 **Always set these before any `uv sync`** (HPC process caps break uv otherwise):
 ```bash

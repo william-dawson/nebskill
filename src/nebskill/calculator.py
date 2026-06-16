@@ -30,8 +30,16 @@ def make_calculator(config: dict, charge: int = 0, spin: int = 0):
 
 
 def _make_mace(config: dict):
-    import torch
-    from mace.calculators import mace_off
+    try:
+        import torch
+        from mace.calculators import mace_off
+    except ImportError as e:
+        raise ImportError(
+            "the mace backend needs PyTorch + mace-torch, which are an optional "
+            "extra — install with `uv sync` on a project that depends on "
+            "nebskill[mace] (or `uv pip install 'nebskill[mace]'`). For an "
+            "ORCA-only machine you don't need them; use backend: orca."
+        ) from e
 
     calc = config.get("calculator", {})
     device = calc.get("device", "auto")
