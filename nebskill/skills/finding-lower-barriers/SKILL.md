@@ -113,13 +113,21 @@ A real flaw requires **ALL** of the following — anything less is a null result
 - [ ] **Same level of theory** — re-run / re-evaluate the new TS with
       `--backend orca` (ωB97X/6-31G(d), the dataset's own method). A MACE-only
       win is just MACE error and does **not** count.
-- [ ] **Same reaction** — the new path connects the *same* relaxed reactant and
-      product, not a different pair. Verify the endpoints match.
-- [ ] **Genuine first-order saddle** — the new TS is a true saddle (one imaginary
-      vibrational mode), not a shoulder or higher-order point. Verify with
-      `/nebskill:verifying-transition-state` (`nebskill-frequencies`): MACE for a
-      cheap pre-check, then ORCA to confirm. A `minimum` or `higher_order_saddle`
-      verdict disqualifies the result.
+- [ ] **Genuine first-order saddle** — the NEB climbing image only *approximates*
+      the saddle, so a frequency calc on it is a screen, not a verdict (it can show
+      one real imaginary mode plus small spurious near-zero ones). Refine to the
+      true stationary point with `/nebskill:verifying-transition-state`
+      (`nebskill-optts`) and read the result: exactly one imaginary mode = a real
+      TS; zero = the low point is a minimum (an intermediate); two or more after
+      refinement = a ridge, not a valid TS. `nebskill-frequencies` (MACE or ORCA)
+      is a cheaper pre-check but not decisive.
+- [ ] **Same reaction** — the TS must connect the *same* reactant and product, not
+      a different pair. `nebskill-irc` rolls downhill from the refined TS in both
+      directions and reports which minima it actually reaches; the barrier only
+      applies to this entry if those match the relaxed reactant and product. (If
+      the IRC instead lands on an intermediate, the reaction may be stepwise — you
+      can then characterize each step by pointing the same
+      relax→neb→optts→irc chain at the endpoint pairs you construct.)
 - [ ] **Smooth path** — the converged energy profile is continuous, no kinks.
 
 If the DFT-confirmed barrier matches the dataset within noise → **reproduced, no
@@ -138,3 +146,7 @@ the nulls too — they show coverage and stop re-investigating the same reaction
   not a flaw.
 - Reproducing their number is the expected outcome; treat a lower barrier as a
   hypothesis to disprove, not a result to announce.
+- A converged barrier *higher* than the dataset's is almost always your own NEB
+  underperforming — a poor initial path settling into a worse saddle — not a flaw
+  in their entry. Reach for the path-exploration levers and try to reach their
+  lower path before concluding anything.
