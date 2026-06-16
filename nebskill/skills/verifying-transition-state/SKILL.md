@@ -20,9 +20,10 @@ nebskill-frequencies --reaction-id INT
 ```
 
 Computes a finite-difference Hessian (6N+1 force evaluations) at the converged
-NEB transition state with the configured backend. With PySCF this is a real DFT
-cost and dispatches to a compute node automatically; with MACE it's cheap and a
-good pre-check.
+NEB transition state with the configured backend. With MACE it's cheap — run it
+directly as a local pre-check. With PySCF it's a real DFT cost: plan it with
+`nebskill-plan frequencies --reaction-id INT` and dispatch it to a compute node
+via `/nebskill:running-on-the-cluster`.
 
 Options:
 - `--source dataset` — analyze the dataset's stored `transition_state` instead

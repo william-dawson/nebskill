@@ -81,45 +81,20 @@ def main():
                         help="Override relaxation fmax (for tighter re-relaxation)")
     parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
                         help="Override calculator backend (default from config)")
-    parser.add_argument("--local", action="store_true",
-                        help="Force local execution, skipping RemoteManager dispatch")
-    parser.add_argument("--force", action="store_true",
-                        help="Resubmit even if a prior run for these parameters "
-                             "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
     import os
-    from nebskill.paths import reaction_root, relax_dirname, effective_backend
-    backend_eff = effective_backend(args.backend)
-
     if os.environ.get("NEBSKILL_WORKER"):
-        # Worker: run where dispatch placed us.
+        # On the compute node: the HPC agent staged our inputs into the job
+        # directory and runs us with --output-dir . — compute right here, no
+        # attempt-dir planning.
         out_dir = Path(args.output_dir) if args.output_dir else \
                   Path(f"outputs/reaction_{args.reaction_id:04d}")
     else:
-        # Orchestrator: relaxed endpoints are backend-specific, so they live in
-        # their own per-backend directory and never clobber another backend's.
-        import shutil
-        root    = reaction_root(args.reaction_id, args.output_dir)
-        out_dir = root / relax_dirname(backend_eff)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        src, dst = root / "endpoints.json", out_dir / "endpoints.json"
-        if src.exists() and not dst.exists():
-            shutil.copy2(src, dst)
-
-    # Dispatch to the remote node if configured (and not already a worker).
-    from nebskill.dispatch import remote_config, submit
-    if not args.local:
-        remote = remote_config()
-        if remote is not None:
-            extra = ["--fmax", str(args.fmax)] if args.fmax else []
-            if args.backend:
-                extra += ["--backend", args.backend]
-            attempt = relax_dirname(backend_eff) + (f"_fmax{args.fmax}" if args.fmax else "")
-            sys.exit(submit(remote, "nebskill.relax", args.reaction_id, out_dir,
-                            send=["endpoints.json"],
-                            recv=["relaxed_endpoints.json", "relax_failure.json"],
-                            extra_args=extra, force=args.force, attempt=attempt))
+        # Local run: set up the per-backend relax dir and stage inputs.
+        from nebskill.prepare import prepare_relax
+        out_dir = prepare_relax(args.reaction_id, args.output_dir,
+                                backend=args.backend, fmax=args.fmax).local_dir
 
     cfg       = load_config(args.config)
     if args.backend:

@@ -19,6 +19,16 @@ chosen at setup by goal:
 Then run `/nebskill:configuring-machine` to configure your machine and install
 the Python package.
 
+## How jobs reach the cluster
+
+nebskill doesn't talk to the cluster itself. It **authors** each compute job
+(`nebskill-plan` emits the command and the files to move); a companion HPC agent
+plugin **runs** it — [Rikyu-Agent](https://github.com/RIKEN-RCCS/Rikyu-Agent)
+for RIKEN AI4S, [Hokusai-Agent](https://github.com/RIKEN-RCCS/Hokusai-Agent) for
+HBW2. Install the one for your cluster alongside nebskill (setup walks you
+through it). If Claude already runs on the login node with a shared filesystem,
+the compute steps can also just run locally.
+
 ## Usage
 
 Just ask Claude in plain language, for example:
@@ -36,8 +46,8 @@ for reactions where NEB finds a lower barrier than the published value.
 
 The skills run in pipeline order:
 
-- **`/nebskill:configuring-machine`** — one-time setup: RemoteManager config,
-  backend choice (MACE or PySCF), and `uv` install.
+- **`/nebskill:configuring-machine`** — one-time setup: backend choice (MACE or
+  PySCF), installing/connecting the companion HPC agent, and `uv` install.
 - **`/nebskill:loading-reaction`** — load a reaction from Transition1x and
   extract NEB endpoints.
 - **`/nebskill:relaxing-endpoints`** — relax reactant and product with the
@@ -45,6 +55,9 @@ The skills run in pipeline order:
 - **`/nebskill:running-neb`** — two-phase NEB (standard then CI-NEB) to find the
   minimum energy path and barrier; logs per-step progress retrievable with
   `nebskill-monitor`.
+- **`/nebskill:running-on-the-cluster`** — dispatch a compute step (relax, neb,
+  frequencies) to an HPC cluster: nebskill plans the job, a companion HPC agent
+  plugin (Rikyu/Hokusai) submits it and moves the files.
 - **`/nebskill:monitoring-convergence`** — diagnose a non-converged NEB and
   retry with adjusted levers (images, spring constant, optimizer, step size).
 - **`/nebskill:analyzing-results`** — compute barriers, plot the energy profile,
@@ -64,4 +77,6 @@ The skills run in pipeline order:
 
 - [Claude Code](https://claude.ai/code)
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- For cluster runs: a companion HPC agent plugin (Rikyu for AI4S, Hokusai for
+  HBW2). Optional if running locally on a shared-filesystem login node.
 - Hardware depends on the backend: MACE benefits from a GPU; PySCF DFT runs on CPU

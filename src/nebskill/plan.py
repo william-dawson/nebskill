@@ -1,0 +1,80 @@
+"""nebskill-plan — emit a compute step as a JSON job plan for the HPC agent.
+
+nebskill does not submit jobs. It authors them: this command computes the
+attempt directory, stages the input files, and prints a JobPlan describing the
+command, the upload/download file manifest, the live progress file, and a
+resource hint. A companion HPC agent plugin (Rikyu for AI4S, Hokusai for HBW2)
+takes that plan and runs it through its MCP tools — fs_upload the inputs,
+submit_job the command (wrapped in the cluster's scheduler script with the
+right account/partition/modules), fs_tail the progress file, then fs_download
+the outputs back into local_dir.
+
+Usage:
+  nebskill-plan relax       --reaction-id N [--backend B] [--fmax F]
+  nebskill-plan neb         --reaction-id N [--n-images ...] [--optimizer ...] ...
+  nebskill-plan frequencies --reaction-id N [--source neb|dataset] ...
+
+See `/nebskill:running-on-the-cluster` for the full dispatch loop.
+"""
+import argparse
+import json
+import sys
+
+from nebskill.prepare import (prepare_frequencies, prepare_neb, prepare_relax)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Emit a compute step as a JSON job plan for the HPC agent")
+    sub = parser.add_subparsers(dest="step", required=True)
+
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--reaction-id", type=int, required=True)
+    common.add_argument("--output-dir", default=None)
+    common.add_argument("--backend", choices=["mace", "pyscf"], default=None)
+
+    p_relax = sub.add_parser("relax", parents=[common])
+    p_relax.add_argument("--fmax", type=float, default=None)
+
+    p_neb = sub.add_parser("neb", parents=[common])
+    p_neb.add_argument("--n-images", type=int, default=None)
+    p_neb.add_argument("--method", default=None)
+    p_neb.add_argument("--spring-constant", type=float, default=None)
+    p_neb.add_argument("--optimizer", choices=["FIRE", "BFGS", "ODE"], default=None)
+    p_neb.add_argument("--max-step", type=float, default=None)
+    p_neb.add_argument("--max-steps", type=int, default=None)
+    p_neb.add_argument("--initial-path", default=None)
+    p_neb.add_argument("--tag", default=None)
+
+    p_freq = sub.add_parser("frequencies", parents=[common])
+    p_freq.add_argument("--source", choices=["neb", "dataset"], default="neb")
+    p_freq.add_argument("--imag-cutoff", type=float, default=50.0)
+    p_freq.add_argument("--tag", default=None)
+
+    args = parser.parse_args()
+
+    if args.step == "relax":
+        plan = prepare_relax(args.reaction_id, args.output_dir,
+                             backend=args.backend, fmax=args.fmax)
+    elif args.step == "neb":
+        plan = prepare_neb(
+            args.reaction_id, args.output_dir, backend=args.backend,
+            n_images=args.n_images, method=args.method,
+            spring_constant=args.spring_constant, optimizer=args.optimizer,
+            max_step=args.max_step, max_steps=args.max_steps,
+            initial_path=args.initial_path, tag=args.tag)
+    else:
+        plan = prepare_frequencies(
+            args.reaction_id, args.output_dir, backend=args.backend,
+            source=args.source, imag_cutoff=args.imag_cutoff, tag=args.tag)
+
+    print(json.dumps(plan.to_dict(), indent=2))
+    if not plan.inputs_ready:
+        print(f"\nWARNING: missing input files in {plan.local_dir}: "
+              f"{plan.missing}\nRun the prerequisite step first "
+              f"(load -> relax -> neb).", file=sys.stderr)
+        sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()

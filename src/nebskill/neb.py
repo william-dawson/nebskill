@@ -217,74 +217,37 @@ def main():
                         help="Optional override for the attempt subdirectory name "
                              "(by default it is derived automatically from the "
                              "parameters; you normally don't need this)")
-    parser.add_argument("--local", action="store_true",
-                        help="Force local execution, skipping RemoteManager dispatch")
-    parser.add_argument("--force", action="store_true",
-                        help="Resubmit even if a prior run for these parameters "
-                             "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
     import os
     progress_name = f"neb_progress_{args.reaction_id:04d}.jsonl"
 
     if os.environ.get("NEBSKILL_WORKER"):
-        # Worker: run exactly where dispatch placed us (its runner cwd).
+        # On the compute node: the HPC agent staged our inputs into the job
+        # directory and runs us with --output-dir . — compute right here, no
+        # attempt-dir planning.
         out_dir = Path(args.output_dir) if args.output_dir else \
                   Path(f"outputs/reaction_{args.reaction_id:04d}")
     else:
-        # Orchestrator: file this attempt under an auto-named subdirectory so
-        # different parameter sets never overwrite each other. The agent does
-        # not choose or pass this — it is derived from the parameters.
-        from nebskill.paths import (reaction_root, effective_backend,
-                                    attempt_name, write_latest, relax_dirname)
-        import shutil
-        root        = reaction_root(args.reaction_id, args.output_dir)
-        backend_eff = effective_backend(args.backend)
-        attempt = args.tag or attempt_name(
-            backend_eff,
-            optimizer=args.optimizer, n_images=args.n_images,
-            spring_constant=args.spring_constant, method=args.method,
+        # Local run: file this attempt under an auto-named subdirectory (derived
+        # from the parameters) and stage its inputs. Same planning the HPC agent
+        # uses via nebskill-plan, so a local run and a dispatched run land in the
+        # same place.
+        from nebskill.prepare import prepare_neb
+        out_dir = prepare_neb(
+            args.reaction_id, args.output_dir, backend=args.backend,
+            n_images=args.n_images, method=args.method,
+            spring_constant=args.spring_constant, optimizer=args.optimizer,
             max_step=args.max_step, max_steps=args.max_steps,
-            seeded=bool(args.initial_path))
-        out_dir = root / attempt
-        out_dir.mkdir(parents=True, exist_ok=True)
-        write_latest(root, attempt)          # downstream commands target this
-        # endpoints come from the reaction root; relaxed endpoints from the
-        # matching backend's relax directory (so a pyscf NEB uses pyscf-relaxed
-        # endpoints, never mace's).
-        ep_src = root / "endpoints.json"
-        if ep_src.exists() and not (out_dir / "endpoints.json").exists():
-            shutil.copy2(ep_src, out_dir / "endpoints.json")
-        rel_src = root / relax_dirname(backend_eff) / "relaxed_endpoints.json"
-        if rel_src.exists() and not (out_dir / "relaxed_endpoints.json").exists():
-            shutil.copy2(rel_src, out_dir / "relaxed_endpoints.json")
-
-    # Dispatch to the remote node if configured (and not already a worker).
-    from nebskill.dispatch import remote_config, submit
-    if not args.local:
-        remote = remote_config()
-        if remote is not None:
-            extra = []
-            if args.n_images:        extra += ["--n-images", str(args.n_images)]
-            if args.method:          extra += ["--method", args.method]
-            if args.spring_constant: extra += ["--spring-constant", str(args.spring_constant)]
-            if args.optimizer:       extra += ["--optimizer", args.optimizer]
-            if args.max_step:        extra += ["--max-step", str(args.max_step)]
-            if args.max_steps:       extra += ["--max-steps", str(args.max_steps)]
-            if args.backend:         extra += ["--backend", args.backend]
-            send = ["relaxed_endpoints.json", "endpoints.json"]
-            if args.initial_path:
-                # stage the seed file into the job dir; worker reads it by name
-                seed = Path(args.initial_path).resolve()
-                send.append(str(seed))
-                extra += ["--initial-path", seed.name]
-            sys.exit(submit(remote, "nebskill.neb", args.reaction_id, out_dir,
-                            send=send,
-                            recv=["neb_result.json", "neb_trajectory.xyz",
-                                  progress_name],
-                            extra_args=extra,
-                            progress_file=progress_name,
-                            force=args.force, attempt=out_dir.name))
+            initial_path=args.initial_path, tag=args.tag).local_dir
+        # prepare_neb copies a seed trajectory in under a stable name; point the
+        # in-process run at it so a local --initial-path works the same way. If
+        # the staging didn't produce the file (source missing), leave the user's
+        # original path so load_band's error names the file they actually gave.
+        if args.initial_path:
+            staged = out_dir / "initial_path.xyz"
+            if staged.exists():
+                args.initial_path = str(staged)
 
     cfg     = load_config(args.config)
     if args.backend:

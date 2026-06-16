@@ -129,10 +129,12 @@ Read `outputs/reaction_{id:04d}/neb_result.json`.
 - Attempts exhausted → write failure report and stop
 
 **A retry that changes a parameter** (`--n-images`, `--optimizer`, …) is a new
-run and submits normally. **Re-running the exact same command** after a crash or
-SLURM timeout will be skipped by RemoteManager as already-attempted — add
-`--force` to resubmit it. Only use `--force` for that recovery case; never to
-re-run a job that already succeeded.
+run: it gets its own parameter-derived attempt directory (locally and on the
+cluster), so it never clobbers the previous attempt. Plan and dispatch it like
+any other run — `nebskill-plan neb …` then the HPC agent loop
+(`/nebskill:running-on-the-cluster`). **Re-running the exact same command** after
+a crash or timeout simply re-uses that same attempt directory; just dispatch it
+again (the agent submits a fresh job).
 
 ---
 

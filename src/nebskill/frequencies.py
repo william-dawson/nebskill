@@ -4,7 +4,8 @@ saddle (exactly one imaginary mode).
 
 Computes a finite-difference Hessian with the configured calculator via ASE's
 Vibrations (6N+1 force evaluations). Cheap with MACE; with PySCF it is a real
-DFT cost, so it dispatches to a compute node via RemoteManager like relax/neb.
+DFT cost, so like relax/neb it is planned with nebskill-plan and dispatched to a
+compute node by the HPC agent (see /nebskill:running-on-the-cluster).
 
 Verdict:
   - exactly 1 imaginary mode  -> genuine first-order saddle (a real TS)
@@ -57,33 +58,20 @@ def main():
     parser.add_argument("--backend", choices=["mace", "pyscf"], default=None)
     parser.add_argument("--tag", default=None,
                         help="Analyze the TS of a tagged attempt subdirectory")
-    parser.add_argument("--local", action="store_true",
-                        help="Force local execution, skipping RemoteManager dispatch")
-    parser.add_argument("--force", action="store_true",
-                        help="Resubmit even if a prior run for these parameters "
-                             "failed or timed out (RemoteManager skips it otherwise)")
     args = parser.parse_args()
 
-    from nebskill.paths import resolve_out_dir, effective_backend
-    out_dir = resolve_out_dir(args.reaction_id, args.output_dir, args.tag)
-
-    # Dispatch to the remote node if configured (and not already a worker).
-    from nebskill.dispatch import remote_config, submit
-    if not args.local:
-        remote = remote_config()
-        if remote is not None:
-            extra = ["--source", args.source, "--imag-cutoff", str(args.imag_cutoff)]
-            if args.backend:
-                extra += ["--backend", args.backend]
-            send = ["endpoints.json"]
-            if args.source == "neb":
-                send += ["neb_result.json", "neb_trajectory.xyz"]
-            be = effective_backend(args.backend)
-            result_name = f"frequencies_{be}_{args.source}.json"
-            attempt = f"{out_dir.name}_freq_{be}_{args.source}"
-            sys.exit(submit(remote, "nebskill.frequencies", args.reaction_id, out_dir,
-                            send=send, recv=[result_name], extra_args=extra,
-                            force=args.force, attempt=attempt))
+    import os
+    if os.environ.get("NEBSKILL_WORKER"):
+        # On the compute node: the HPC agent staged the TS inputs here.
+        out_dir = Path(args.output_dir) if args.output_dir else \
+                  Path(f"outputs/reaction_{args.reaction_id:04d}")
+    else:
+        # Local run: resolve the attempt being analyzed and stage inputs.
+        from nebskill.prepare import prepare_frequencies
+        out_dir = prepare_frequencies(
+            args.reaction_id, args.output_dir, backend=args.backend,
+            source=args.source, imag_cutoff=args.imag_cutoff,
+            tag=args.tag).local_dir
 
     cfg = load_config(args.config)
     if args.backend:
