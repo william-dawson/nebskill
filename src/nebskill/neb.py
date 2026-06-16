@@ -211,13 +211,56 @@ def main():
                         help="Seed the band from a trajectory file (e.g. a "
                              "MACE-converged neb_trajectory.xyz) instead of "
                              "interpolating; uses its last n_images frames")
-    parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
+    parser.add_argument("--backend", choices=["mace", "pyscf", "orca"], default=None,
                         help="Override calculator backend (default from config)")
     parser.add_argument("--tag", default=None,
                         help="Optional override for the attempt subdirectory name "
                              "(by default it is derived automatically from the "
                              "parameters; you normally don't need this)")
+
+    # --- ORCA backend only: native ORCA NEB levers (ignored by mace/pyscf) ---
+    orca_grp = parser.add_argument_group(
+        "ORCA NEB", "Native ORCA NEB options (backend=orca only)")
+    orca_grp.add_argument("--neb-type", default=None,
+                          choices=["NEB", "NEB-CI", "NEB-TS", "FAST-NEB-TS",
+                                   "LOOSE-NEB-TS", "TIGHT-NEB-TS", "ZOOM-NEB-CI"],
+                          help="ORCA NEB variant (loose/tight = relaxed/strict "
+                               "convergence; default NEB-CI)")
+    orca_grp.add_argument("--opt-method", default=None,
+                          choices=["LBFGS", "VPO", "FIRE", "BFGS"],
+                          help="ORCA band optimizer (FIRE/VPO for oscillating bands)")
+    orca_grp.add_argument("--max-iter", type=int, default=None,
+                          help="ORCA NEB MaxIter")
+    orca_grp.add_argument("--max-move", type=float, default=None,
+                          help="ORCA Maxmove, Bohr/step (lower stabilizes)")
+    orca_grp.add_argument("--interpolation", default=None,
+                          choices=["IDPP", "linear", "XTB0", "XTB1", "XTB2"],
+                          help="Initial-path interpolation")
+    orca_grp.add_argument("--sidpp", action="store_true", default=False,
+                          help="Sequential IDPP for hard geometries")
+    orca_grp.add_argument("--spring-constant2", type=float, default=None,
+                          help="Upper (energy-weighted) spring constant")
+    orca_grp.add_argument("--no-energy-weighted", action="store_true", default=False,
+                          help="Disable variable/energy-weighted springs")
+    orca_grp.add_argument("--free-end", action="store_true", default=False,
+                          help="Free-end NEB (let endpoints relax along the path)")
+    orca_grp.add_argument("--ts-guess", default=None,
+                          help="XYZ TS guess to seed the path (path exploration)")
+    orca_grp.add_argument("--restart-path", default=None,
+                          help="ORCA .allxyz to warm-start the band (e.g. a prior "
+                               "MEP); the ORCA analog of --initial-path")
     args = parser.parse_args()
+
+    # Collect the ORCA overrides the agent actually set (None = use config).
+    orca_overrides = {
+        "neb_type": args.neb_type, "opt_method": args.opt_method,
+        "max_iter": args.max_iter, "max_move": args.max_move,
+        "interpolation": args.interpolation,
+        "spring_constant2": args.spring_constant2,
+        "sidpp": args.sidpp or None, "free_end": args.free_end or None,
+        "energy_weighted": False if args.no_energy_weighted else None,
+        "ts_guess": args.ts_guess, "restart_path": args.restart_path,
+    }
 
     import os
     progress_name = f"neb_progress_{args.reaction_id:04d}.jsonl"
@@ -239,7 +282,8 @@ def main():
             n_images=args.n_images, method=args.method,
             spring_constant=args.spring_constant, optimizer=args.optimizer,
             max_step=args.max_step, max_steps=args.max_steps,
-            initial_path=args.initial_path, tag=args.tag).local_dir
+            initial_path=args.initial_path, tag=args.tag,
+            orca=orca_overrides).local_dir
         # prepare_neb copies a seed trajectory in under a stable name; point the
         # in-process run at it so a local --initial-path works the same way. If
         # the staging didn't produce the file (source missing), leave the user's
@@ -248,6 +292,15 @@ def main():
             staged = out_dir / "initial_path.xyz"
             if staged.exists():
                 args.initial_path = str(staged)
+        # likewise re-point ORCA's staged file-valued levers at their stable
+        # names — in args AND in orca_overrides (which feeds resolve_neb_params /
+        # the ORCA input), so the worker and a local run reference the same
+        # staged basename rather than the original (possibly relative) path.
+        for attr, stable in (("ts_guess", "ts_guess.xyz"),
+                             ("restart_path", "restart.allxyz")):
+            if getattr(args, attr) and (out_dir / stable).exists():
+                setattr(args, attr, stable)
+                orca_overrides[attr] = stable
 
     cfg     = load_config(args.config)
     if args.backend:
@@ -277,12 +330,58 @@ def main():
 
     reactant = dict_to_atoms(relaxed["reactant"])
     product  = dict_to_atoms(relaxed["product"])
-    calc     = make_calculator(cfg, charge=endpoints.get("charge", 0),
-                               spin=endpoints.get("spin", 0))
+    backend  = cfg["calculator"].get("backend", "mace")
 
     n_images = args.n_images if args.n_images else compute_n_images(reactant, product, cfg)
-    method   = neb_cfg["method"]
     k        = float(neb_cfg["spring_constant"])
+
+    # --- ORCA backend: hand the whole NEB to ORCA's native NEB-CI ---------- #
+    if backend == "orca":
+        from nebskill import orca
+        charge = endpoints.get("charge", 0)
+        mult   = int(endpoints.get("spin", 0)) + 1
+        # ORCA spring constants are Eh/Bohr² (ORCA convention), not the ASE eV/Å
+        # default — only pass an explicitly-provided value, else ORCA's default.
+        orca_k = args.spring_constant
+        params = orca.resolve_neb_params(
+            neb_cfg, n_images=n_images, spring_constant=orca_k,
+            overrides=orca_overrides)
+        print(f"NEB for reaction {args.reaction_id} ({relaxed['formula']}) "
+              f"— ORCA {params.get('neb_type', 'NEB-CI')} "
+              f"({orca.level_of_theory(cfg)})")
+        print(f"  n_images={n_images}, k={orca_k or 'ORCA default'}, "
+              f"opt={params.get('opt_method')}, "
+              f"interp={params.get('interpolation')}")
+        res = orca.run_neb(reactant, product, charge, mult, cfg, out_dir, params)
+        # band -> neb_trajectory.xyz (downstream frequencies reads its last
+        # n_images frames, same as the ASE path).
+        write_trajectory(res["band"], out_dir / "neb_trajectory.xyz")
+        latest = {
+            "phase":       2,
+            "converged":   res["converged"],
+            "steps_taken": res["steps_taken"],
+            "max_steps":   params.get("max_iter"),
+            "fmax_target": None,
+            "fmax_final":  None,
+            "energies":    res["energies"],
+            "ts_image":    res["ts_idx"],
+            "wall_time_s": res["wall_time_s"],
+        }
+        _write_neb_result(out_dir, latest, n_images,
+                          params.get("neb_type", "NEB-CI"), orca_k,
+                          relaxed["dft_forward_barrier_ev"],
+                          optimizer=params.get("opt_method", "LBFGS"))
+        if not res["converged"]:
+            print("ORCA NEB did not converge — triggering retry (step 4)")
+            sys.exit(4)
+        print(f"ORCA NEB converged. Trajectory: {out_dir / 'neb_trajectory.xyz'}")
+        print(f"Results: {out_dir / 'neb_result.json'}")
+        return
+
+    # --- mace / pyscf backends: ASE two-phase NEB -------------------------- #
+    calc     = make_calculator(cfg, charge=endpoints.get("charge", 0),
+                               spin=endpoints.get("spin", 0))
+    method   = neb_cfg["method"]
 
     print(f"NEB for reaction {args.reaction_id} ({relaxed['formula']})")
     print(f"  n_images={n_images}, method={method}, k={k} eV/Å, "

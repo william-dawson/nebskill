@@ -87,6 +87,14 @@ settle into a different basin:
   hypothesized stepwise intermediate) — a lower saddle in a different basin won't
   be found from one initial guess.
 
+**With the ORCA backend** the same path-changing levers exist under ORCA's own
+names: more `--n-images`; `--spring-constant`/`--spring-constant2`/
+`--no-energy-weighted` to reshape the band; `--restart-path prev.allxyz` to
+warm-start from a prior (e.g. MACE-converged, exported) MEP — the ORCA analog of
+`--initial-path`; and `--ts-guess ts.xyz` to seed a hypothesized saddle directly.
+Switching only `--opt-method` or tightening `--max-move`/`--neb-type` is still a
+*convergence* change, not a discovery one — expect the same saddle.
+
 (If a candidate run won't converge, *then* reach for the optimizer/step levers in
 `/nebskill:monitoring-convergence` to land it — but expect the converged barrier
 to be path-determined, not optimizer-determined.)

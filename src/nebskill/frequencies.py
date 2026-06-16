@@ -55,7 +55,7 @@ def main():
     parser.add_argument("--imag-cutoff", type=float, default=50.0,
                         help="cm^-1; imaginary modes below this are treated as "
                              "near-zero trans/rot noise, not real saddle modes")
-    parser.add_argument("--backend", choices=["mace", "pyscf"], default=None)
+    parser.add_argument("--backend", choices=["mace", "pyscf", "orca"], default=None)
     parser.add_argument("--tag", default=None,
                         help="Analyze the TS of a tagged attempt subdirectory")
     args = parser.parse_args()
@@ -91,29 +91,38 @@ def main():
           f"({endpoints['formula']}) — source={args.source}, backend={backend}, "
           f"charge={charge}, spin={spin}")
 
-    atoms.calc = make_calculator(cfg, charge=charge, spin=spin)
-
-    from ase.vibrations import Vibrations
-    vib_dir = out_dir / "vib_tmp"
-    vib = Vibrations(atoms, name=str(vib_dir))
-    vib.clean()                # clear any stale cache
-    vib.run()
-    freqs = vib.get_frequencies()   # complex ndarray, cm^-1
-    vib.clean()
-
-    # Imaginary modes appear with a non-zero imaginary part. Ignore those below
-    # the cutoff (near-zero translational/rotational modes).
-    imag = [round(float(f.imag), 1) for f in freqs
-            if abs(f.imag) > args.imag_cutoff]
-    real = sorted(float(f.real) for f in freqs if abs(f.imag) <= args.imag_cutoff)
-    n_imag = len(imag)
-
-    if n_imag == 1:
-        verdict = "first_order_saddle"
-    elif n_imag == 0:
-        verdict = "minimum"
+    if backend == "orca":
+        # ORCA computes an analytic Hessian (! Freq) — far better than ASE's
+        # finite-difference for a DFT TS.
+        from nebskill import orca
+        vib = orca.frequencies(atoms, charge=charge, mult=int(spin) + 1,
+                               config=cfg, job_dir=out_dir,
+                               imag_cutoff=args.imag_cutoff)
+        n_imag  = vib["n_imaginary"]
+        imag    = vib["imaginary_cm"]
+        verdict = vib["verdict"]
+        lowest_real = vib["lowest_real_cm"]
     else:
-        verdict = "higher_order_saddle"
+        atoms.calc = make_calculator(cfg, charge=charge, spin=spin)
+
+        from ase.vibrations import Vibrations
+        vib_dir = out_dir / "vib_tmp"
+        v = Vibrations(atoms, name=str(vib_dir))
+        v.clean()                  # clear any stale cache
+        v.run()
+        freqs = v.get_frequencies()   # complex ndarray, cm^-1
+        v.clean()
+
+        # Imaginary modes appear with a non-zero imaginary part. Ignore those
+        # below the cutoff (near-zero translational/rotational modes).
+        imag = sorted(round(float(f.imag), 1) for f in freqs
+                      if abs(f.imag) > args.imag_cutoff)
+        real = sorted(float(f.real) for f in freqs
+                      if abs(f.imag) <= args.imag_cutoff)
+        n_imag = len(imag)
+        lowest_real = round(real[0], 1) if real else None
+        verdict = ("first_order_saddle" if n_imag == 1 else
+                   "minimum" if n_imag == 0 else "higher_order_saddle")
 
     result = {
         "reaction_id":      args.reaction_id,
@@ -122,7 +131,7 @@ def main():
         "backend":          backend,
         "n_imaginary":      n_imag,
         "imaginary_cm":     sorted(imag),
-        "lowest_real_cm":   round(real[0], 1) if real else None,
+        "lowest_real_cm":   lowest_real,
         "is_first_order_saddle": verdict == "first_order_saddle",
         "verdict":          verdict,
         "imag_cutoff_cm":   args.imag_cutoff,

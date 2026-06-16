@@ -5,14 +5,27 @@ dataset:
   download_url: https://ndownloader.figshare.com/files/36035789
 
 calculator:
-  backend: mace               # mace | pyscf
+  backend: mace               # mace | pyscf | orca
   # --- mace backend ---
   model_size: medium          # small | medium | large
   device: auto                # auto | cpu | cuda
   dtype: float64
-  # --- pyscf backend (reproduce Transition1x level of theory) ---
+  # --- pyscf / orca backends (reproduce Transition1x level of theory) ---
   xc: wb97x                   # ωB97X, as in the dataset paper
   basis: 6-31g(d)             # 6-31G(d), as in the dataset paper
+  # --- orca backend (native ORCA jobs: Opt / NEB-CI / Freq) ---
+  # ORCA is an external binary, not a Python lib: it is invoked per job, has its
+  # own NEB/optimizer/frequencies, and needs the cluster's modules loaded first.
+  # The machine-specific recipe (binary path, modules, procs) is filled in at
+  # setup by /nebskill:configuring-machine and written into neb_local.yaml.
+  orca:
+    command: orca             # full path to the orca binary on the cluster
+    nprocs: 1                 # MPI ranks; drives both %pal nprocs AND the job's
+                              # --ntasks-per-node so the two never disagree
+    mem_per_proc_mb: 2000     # per-rank memory -> %maxcore; total -> job --mem
+    simple_input: null        # extra ! keywords (e.g. "TightSCF Grid4"); null = none
+    pre_launch: ""            # shell lines run before orca (module load / export),
+                              # emitted into the job as JobSpec.pre_launch
 
 relaxation:
   optimizer_1: FIRE
@@ -41,6 +54,19 @@ neb:
   phase1_max_steps: 300
   phase2_fmax: 0.05           # eV/Å — paper's CI-NEB target
   phase2_max_steps: 500
+  # --- orca backend: native ORCA NEB (its own keywords; see the ORCA manual) ---
+  # These map onto the %neb block. n_images/spring_constant above are reused.
+  orca:
+    neb_type: NEB-CI          # NEB-CI | NEB-TS | FAST-NEB-TS | LOOSE-NEB-TS |
+                              # TIGHT-NEB-TS | ZOOM-NEB-CI (the ! simple-input variant)
+    opt_method: LBFGS         # LBFGS | VPO | FIRE | BFGS  (Opt_Method)
+    max_iter: 500             # MaxIter
+    max_move: null            # Maxmove, Bohr/step; null = ORCA default (0.1)
+    interpolation: IDPP       # IDPP | linear | XTB0 | XTB1 | XTB2  (Interpolation)
+    sidpp: false              # Sequential IDPP for hard geometries (SIDPP)
+    spring_constant2: null    # SpringConst2 (upper, energy-weighted); null = default
+    energy_weighted: true     # Energy_Weighted (variable springs)
+    free_end: false           # Free_End (let endpoints relax along the path)
 
 retry:
   max_attempts: 3

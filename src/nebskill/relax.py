@@ -79,7 +79,7 @@ def main():
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--fmax", type=float, default=None,
                         help="Override relaxation fmax (for tighter re-relaxation)")
-    parser.add_argument("--backend", choices=["mace", "pyscf"], default=None,
+    parser.add_argument("--backend", choices=["mace", "pyscf", "orca"], default=None,
                         help="Override calculator backend (default from config)")
     args = parser.parse_args()
 
@@ -117,20 +117,31 @@ def main():
           f"({endpoints['formula']}) with backend={backend} "
           f"(charge={charge}, spin={spin})")
 
-    calc    = make_calculator(cfg, charge=charge, spin=spin)
+    # ORCA is an external binary with its own optimizer — drive it natively
+    # rather than through an ASE calculator. mace/pyscf use the ASE path.
+    use_orca = backend == "orca"
+    calc = None if use_orca else make_calculator(cfg, charge=charge, spin=spin)
     results = {}
     failure = None
 
     for label in ("reactant", "product"):
-        atoms      = dict_to_atoms(endpoints[label])
-        atoms.calc = calc
+        atoms = dict_to_atoms(endpoints[label])
         try:
-            results[label] = relax_structure(
-                atoms, fmax=fmax,
-                fire_max_steps=relax_cfg["optimizer_1_max_steps"],
-                bfgs_max_steps=relax_cfg["optimizer_1_max_steps"],
-                label=label,
-            )
+            if use_orca:
+                from nebskill import orca
+                print(f"  [{label}] ORCA geometry optimization "
+                      f"({orca.level_of_theory(cfg)})")
+                results[label] = orca.optimize(
+                    atoms, charge=charge, mult=int(spin) + 1, config=cfg,
+                    job_dir=out_dir, label=f"relax_{label}")
+            else:
+                atoms.calc = calc
+                results[label] = relax_structure(
+                    atoms, fmax=fmax,
+                    fire_max_steps=relax_cfg["optimizer_1_max_steps"],
+                    bfgs_max_steps=relax_cfg["optimizer_1_max_steps"],
+                    label=label,
+                )
         except RuntimeError as e:
             failure = str(e)
             break

@@ -1,15 +1,23 @@
 ---
 name: running-neb
 description: >
-  Runs two-phase NEB (standard NEB then CI-NEB) to find the minimum energy path
-  and reaction barrier, using the configured backend (MACE or PySCF). Writes a
-  live per-step progress log; can be backgrounded and watched. Use after
-  relaxing-endpoints. If convergence fails (returncode=4), use monitoring-convergence.
+  Runs NEB to find the minimum energy path and reaction barrier with the
+  configured backend. MACE/PySCF use a two-phase ASE NEB (standard then CI-NEB);
+  ORCA runs its own native NEB-CI. Writes a live progress log; can be
+  backgrounded and watched. Use after relaxing-endpoints. If convergence fails
+  (returncode=4), use monitoring-convergence.
 allowed-tools: Bash Read Write
 ---
 
-Interpolates NEB images between relaxed endpoints and runs two optimisation
-phases: standard NEB (phase 1) followed by Climbing Image NEB (phase 2).
+Finds the minimum energy path between the relaxed endpoints. How depends on the
+backend (chosen at setup):
+
+- **mace / pyscf** — ASE drives two phases: standard NEB (phase 1) then Climbing
+  Image NEB (phase 2).
+- **orca** — a single native ORCA NEB-CI job (ORCA's own band optimizer); this is
+  the method that generated Transition1x.
+
+The command and outputs are the same either way; the parameters differ.
 
 ## Script
 
@@ -17,7 +25,9 @@ phases: standard NEB (phase 1) followed by Climbing Image NEB (phase 2).
 nebskill-neb --reaction-id INT
 ```
 
-Override parameters (used by `/nebskill:monitoring-convergence` on retry):
+### MACE / PySCF (ASE) override parameters
+
+Used by `/nebskill:monitoring-convergence` on retry:
 
 ```bash
 nebskill-neb --reaction-id INT \
@@ -32,6 +42,30 @@ a warm start that drops the run into a path already found. It uses the file's
 last `n_images` frames; the endpoints are replaced with the relaxed reactant and
 product.
 
+### ORCA override parameters (backend=orca only)
+
+ORCA has its own NEB keyword set — the ASE `--optimizer`/`--max-step` do **not**
+apply. Shared concepts (`--n-images`, `--spring-constant`) carry over; the rest
+map onto ORCA's `%neb` block:
+
+```bash
+nebskill-neb --reaction-id INT \
+    [--neb-type NEB-CI|NEB-TS|LOOSE-NEB-TS|TIGHT-NEB-TS|FAST-NEB-TS|ZOOM-NEB-CI] \
+    [--opt-method LBFGS|VPO|FIRE|BFGS] [--max-iter N] [--max-move 0.05] \
+    [--interpolation IDPP|XTB0|XTB1|XTB2] [--sidpp] \
+    [--spring-constant2 K2] [--no-energy-weighted] [--free-end] \
+    [--ts-guess ts.xyz] [--restart-path prev.allxyz]
+```
+
+- **Converge a tough case**: a looser/tighter variant (`--neb-type LOOSE-NEB-TS`),
+  a different optimizer (`--opt-method VPO|FIRE`), more iterations (`--max-iter`),
+  a smaller step (`--max-move`), or a better starting path (`--sidpp`, XTB
+  interpolation).
+- **Explore a new path**: more images, soften/stiffen springs
+  (`--spring-constant`/`--spring-constant2`/`--no-energy-weighted`), seed a
+  hypothesized saddle (`--ts-guess`), or warm-start from a prior MEP
+  (`--restart-path`, the ORCA analog of `--initial-path` — the MACE→ORCA move).
+
 ## Watch progress
 
 For long runs (especially the **pyscf** backend, which can take hours), run the
@@ -44,6 +78,9 @@ nebskill-monitor --reaction-id INT --tail 20
 
 It prints each optimizer step (fmax, barrier estimate, which image is the peak)
 plus a latest-step summary, and works both during the run and after it finishes.
+(This jsonl trace is written by the MACE/PySCF path; the **orca** backend logs to
+its own `neb.out` instead — watch that with the HPC agent's `fs_tail` during a
+cluster run, per `/nebskill:running-on-the-cluster`.)
 
 If the trace shows a stall — fmax plateauing well above target, fmax oscillating,
 or `ts_image` wandering without the barrier settling — stop the run and re-launch
@@ -56,6 +93,13 @@ Unless overridden:
 ```
 n_images = max(10, round(path_length_Å / 1.0))
 ```
+
+## Phases (MACE / PySCF only)
+
+The two phases below are the **ASE** path. The **orca** backend does not use
+them — `--neb-type` selects ORCA's own variant (e.g. NEB-CI converges the band
+then climbs to the saddle in one job), and convergence is ORCA's internal
+criterion, not `phase1_fmax`/`phase2_fmax`.
 
 ## Phase 1 — Standard NEB
 

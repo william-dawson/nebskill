@@ -56,15 +56,30 @@ goal, not by which is "better":
 > "Which calculator should NEB calculations use here?
 >   - **mace** — MACE-OFF23 ML potential. Approximate forces, seconds per
 >     evaluation. Good for exploring many reactions / cheap triage.
->   - **pyscf** — DFT at the dataset's level of theory (ωB97X/6-31G(d)). The
->     reference quality, directly comparable to Transition1x; a full NEB is many
->     DFT gradient evaluations."
+>   - **pyscf** — DFT at the dataset's level of theory (ωB97X/6-31G(d)), run
+>     in-process via ASE. Reference quality; a full NEB is many gradient calls.
+>   - **orca** — native ORCA jobs (its own Opt / NEB-CI / Freq) at ωB97X/6-31G(d).
+>     This is the method that *generated* Transition1x, so NEB-CI here reproduces
+>     their procedure exactly, with ORCA's own optimizer and analytic Hessian.
+>     Requires an ORCA install on the cluster (a binary + modules, not a pip
+>     package)."
 
-Neither is the default — ask. The choice is written to `neb_local.yaml` (step 6)
-and shapes step 4:
+No default — ask. The choice is written to `neb_local.yaml` (step 6) and shapes
+the rest of setup:
 - **mace** → the PyTorch build matters (GPU acceleration); do step 4.
 - **pyscf** → torch isn't used for compute, so step 4 installs CPU torch; the
   relevant accelerator is `gpu4pyscf` (optional, advanced).
+- **orca** → torch/GPU are irrelevant (ORCA is an external binary); skip step 4's
+  GPU index. Instead capture the **ORCA recipe** now — ask the user for a working
+  ORCA jobscript and read off:
+    - the full path to the `orca` binary (it must be the full path; ORCA needs it
+      for MPI),
+    - the `module load` / `export` lines ORCA needs (e.g. `module load intel`,
+      `module load openmpi`, `export XTBPATH=…`),
+    - the MPI rank count (`--ntasks-per-node`, → ORCA `%pal nprocs`) and memory
+      (`--mem`, → per-rank `%maxcore`).
+  These go into `neb_local.yaml`'s `calculator.orca` block in step 6. Account and
+  partition are **not** captured here — those belong to the HPC agent.
 
 ---
 
@@ -97,8 +112,9 @@ note that and skip the remote half of step 5.
 
 ## 4 — Determine the PyTorch variant (mace backend)
 
-**If the backend is `pyscf`**, skip the GPU index — install CPU torch (unused for
-compute). The DFT accelerator `gpu4pyscf` is out of scope here. Go to step 5.
+**If the backend is `pyscf` or `orca`**, skip the GPU index — install CPU torch
+(unused for compute; ORCA doesn't use torch at all). The DFT accelerator
+`gpu4pyscf` is out of scope here. Go to step 5.
 
 **If the backend is `mace`**, the PyTorch build matters. Ask directly — don't
 probe with a job. Hint from the cluster: a GPU partition / `module load
@@ -195,6 +211,27 @@ calculator:
   xc: wb97x
   basis: 6-31g(d)
 ```
+
+If `orca` was chosen, include the level of theory **and** the ORCA recipe
+captured in step 2. `nprocs` is the one knob that matters most: it drives both
+ORCA's `%pal nprocs` and the job's SLURM `--ntasks`, so they can never disagree.
+```yaml
+calculator:
+  backend: orca
+  xc: wb97x
+  basis: 6-31g(d)
+  orca:
+    command: /data/hp260089/orca_6_1_1_linux_x86-64_shared_openmpi418_avx2/orca
+    nprocs: 7              # MPI ranks -> %pal nprocs AND job --ntasks-per-node
+    mem_per_proc_mb: 1500  # -> %maxcore; total (nprocs×this) -> job --mem
+    pre_launch: |          # the exact module/env lines from the user's jobscript
+      module load intel
+      module unload intelmpi -f
+      module load openmpi
+      export XTBPATH=/data/hp260089/orca_6_1_1_linux_x86-64_shared_openmpi418_avx2
+```
+`nebskill-plan` emits `pre_launch` and the matching `--ntasks`/`--mem`/`%maxcore`
+into every ORCA job; the HPC agent adds account/partition on top.
 
 Also write `WORKING_DIR/nebskill_cluster.yaml` so the dispatch skill knows where
 jobs run on the cluster (no host/SLURM details — those belong to the HPC agent):

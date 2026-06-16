@@ -31,7 +31,7 @@ def main():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--reaction-id", type=int, required=True)
     common.add_argument("--output-dir", default=None)
-    common.add_argument("--backend", choices=["mace", "pyscf"], default=None)
+    common.add_argument("--backend", choices=["mace", "pyscf", "orca"], default=None)
 
     p_relax = sub.add_parser("relax", parents=[common])
     p_relax.add_argument("--fmax", type=float, default=None)
@@ -45,6 +45,22 @@ def main():
     p_neb.add_argument("--max-steps", type=int, default=None)
     p_neb.add_argument("--initial-path", default=None)
     p_neb.add_argument("--tag", default=None)
+    # ORCA backend only (native ORCA NEB levers)
+    p_neb.add_argument("--neb-type", default=None,
+                       choices=["NEB", "NEB-CI", "NEB-TS", "FAST-NEB-TS",
+                                "LOOSE-NEB-TS", "TIGHT-NEB-TS", "ZOOM-NEB-CI"])
+    p_neb.add_argument("--opt-method", default=None,
+                       choices=["LBFGS", "VPO", "FIRE", "BFGS"])
+    p_neb.add_argument("--max-iter", type=int, default=None)
+    p_neb.add_argument("--max-move", type=float, default=None)
+    p_neb.add_argument("--interpolation", default=None,
+                       choices=["IDPP", "linear", "XTB0", "XTB1", "XTB2"])
+    p_neb.add_argument("--sidpp", action="store_true", default=False)
+    p_neb.add_argument("--spring-constant2", type=float, default=None)
+    p_neb.add_argument("--no-energy-weighted", action="store_true", default=False)
+    p_neb.add_argument("--free-end", action="store_true", default=False)
+    p_neb.add_argument("--ts-guess", default=None)
+    p_neb.add_argument("--restart-path", default=None)
 
     p_freq = sub.add_parser("frequencies", parents=[common])
     p_freq.add_argument("--source", choices=["neb", "dataset"], default="neb")
@@ -57,12 +73,22 @@ def main():
         plan = prepare_relax(args.reaction_id, args.output_dir,
                              backend=args.backend, fmax=args.fmax)
     elif args.step == "neb":
+        orca_overrides = {
+            "neb_type": args.neb_type, "opt_method": args.opt_method,
+            "max_iter": args.max_iter, "max_move": args.max_move,
+            "interpolation": args.interpolation,
+            "spring_constant2": args.spring_constant2,
+            "sidpp": args.sidpp or None, "free_end": args.free_end or None,
+            "energy_weighted": False if args.no_energy_weighted else None,
+            "ts_guess": args.ts_guess, "restart_path": args.restart_path,
+        }
         plan = prepare_neb(
             args.reaction_id, args.output_dir, backend=args.backend,
             n_images=args.n_images, method=args.method,
             spring_constant=args.spring_constant, optimizer=args.optimizer,
             max_step=args.max_step, max_steps=args.max_steps,
-            initial_path=args.initial_path, tag=args.tag)
+            initial_path=args.initial_path, tag=args.tag,
+            orca=orca_overrides)
     else:
         plan = prepare_frequencies(
             args.reaction_id, args.output_dir, backend=args.backend,

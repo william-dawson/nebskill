@@ -101,6 +101,22 @@ Prefer a dynamical lever over a structural one when `steps_taken` is at the cap
 and `fmax_final` is already low (especially phase 2) — changing the geometry
 there throws away progress.
 
+**ORCA backend.** The `--optimizer`/`--max-step`/`--method` levers above are ASE
+NEB controls and don't apply. ORCA's analogs (same reasoning, different keywords):
+
+| Intervention | ORCA flag | When |
+|---|---|---|
+| Smaller step | `--max-move 0.05` | band rings / forces oscillate (Bohr/step) |
+| Switch band optimizer | `--opt-method VPO` or `FIRE` | LBFGS stalling on a stiff/oscillating band |
+| Relax convergence target | `--neb-type LOOSE-NEB-TS` | a near-converged band that won't hit the tight default |
+| More iterations | `--max-iter N` | still descending at the cap |
+| Better starting path | `--sidpp` or `--interpolation XTB1` | phase-1-style kinking from a poor initial guess |
+| Re-relax endpoints | `nebskill-relax --fmax 0.005` then re-run | high endpoint force |
+
+(Structural levers `--n-images` and `--spring-constant` apply to ORCA unchanged.)
+On a cluster, watch ORCA's `neb.out` via the HPC agent's `fs_tail` rather than
+`nebskill-monitor` (which reads the ASE jsonl trace).
+
 ---
 
 ## 4.4 — Re-run NEB

@@ -20,7 +20,9 @@ def diagnose(neb_result: dict) -> dict:
 
     energies = np.array(latest.get("energies", []))
     forces   = np.array(latest.get("forces_per_image", []))
-    fmax     = latest.get("fmax_final", 0.0)
+    # fmax_final / forces_per_image are absent for native-engine backends (ORCA
+    # runs its own NEB and doesn't expose ASE per-image forces) — treat as 0.0.
+    fmax     = latest.get("fmax_final") or 0.0
     phase    = latest.get("phase", 1)
     steps    = latest.get("steps_taken", 0)
 

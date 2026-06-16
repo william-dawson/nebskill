@@ -60,9 +60,16 @@ Map the plan onto the agent's `submit_job` JobSpec:
 - `executable: "uv"`, `arguments: ["run", *command]`
 - `directory:` the remote job directory
 - `environment:` the plan's `environment` (so `NEBSKILL_WORKER=1` etc. are set)
-- `resources:` honor the plan's `cpus`/`gpus` as a starting point
-- account / partition / walltime / `module load`: **the agent's** to fill from
-  its own config — use the `walltime_hint` only as a suggestion
+- `pre_launch:` the plan's `pre_launch` — for the **orca** backend this carries
+  the `module load` / `export` lines ORCA needs (binary's MPI libs, XTBPATH).
+  Empty for mace/pyscf. These must run before the executable, which is exactly
+  what JobSpec.pre_launch is for.
+- `resources:` honor the plan's `cpus`/`gpus`. For **orca**, the plan also gives
+  `ntasks` and `mem_mb` derived from the ORCA `nprocs` recipe — pass `ntasks`
+  through so the MPI rank count matches ORCA's `%pal nprocs` (a mismatch wastes
+  or starves ranks), and `mem_mb` as the job memory.
+- account / partition / walltime: **the agent's** to fill from its own config —
+  use the `walltime_hint` only as a suggestion (ORCA NEB can be long)
 - the job must `cd` into / `uv run` from the **remote_project_dir's** venv; the
   simplest is to run from the remote project dir with `uv run --directory
   <remote_project_dir> nebskill-… --output-dir <job dir>`, or `cd` to the job
@@ -75,11 +82,15 @@ Call `submit_job`; keep the returned `job_id`.
 
 Poll `get_job_status(job_id)` until it leaves `queued`/`active`. While it runs, if
 the plan has a `progress_file`, `fs_tail` the remote `<job dir>/<progress_file>`
-to watch convergence live — each line carries the step, residual `fmax`, the
-running `barrier_est_ev`, and which image is the peak. This is how you notice a
-band stalling or a barrier creeping up mid-run and decide to cancel (the agent's
-`cancel_job`) and re-plan with different parameters. (For `relax`/`frequencies`
-there's no progress file — just poll status.)
+to watch convergence live. The format depends on the backend:
+- **mace / pyscf** → `progress_file` is `neb_progress_NNNN.jsonl`, one JSON line
+  per optimizer step with `fmax`, the running `barrier_est_ev`, and the peak image.
+- **orca** → `progress_file` is `neb.out`, ORCA's own NEB log: watch its
+  per-iteration table (max/RMS perpendicular force, the climbing-image energy).
+
+Either way, this is how you notice a band stalling or a barrier creeping up
+mid-run and decide to cancel (`cancel_job`) and re-plan with different parameters.
+(For `relax`/`frequencies` there's no progress file — just poll status.)
 
 ### 5 — Fetch results
 

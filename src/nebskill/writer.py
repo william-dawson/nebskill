@@ -19,17 +19,21 @@ def main():
 
     lines = ["phase\tsteps\tfmax_target\tfmax_final\tconverged\twall_time_s"]
 
+    def _fmt_fmax(v):
+        # None for native-engine backends (ORCA) that don't expose a per-image fmax
+        return f"{v:.6f}" if isinstance(v, (int, float)) else "n/a"
+
     phase1 = neb_result.get("phase1")
     if phase1:
         lines.append(
             f"1\t{phase1['steps_taken']}\t{phase1['fmax_target']}\t"
-            f"{phase1['fmax_final']:.6f}\t{phase1['converged']}\t{phase1['wall_time_s']}"
+            f"{_fmt_fmax(phase1['fmax_final'])}\t{phase1['converged']}\t{phase1['wall_time_s']}"
         )
 
     latest = neb_result["latest"]
     lines.append(
         f"{latest['phase']}\t{latest['steps_taken']}\t{latest['fmax_target']}\t"
-        f"{latest['fmax_final']:.6f}\t{latest['converged']}\t{latest['wall_time_s']}"
+        f"{_fmt_fmax(latest['fmax_final'])}\t{latest['converged']}\t{latest['wall_time_s']}"
     )
 
     out_path = out_dir / "convergence.log"

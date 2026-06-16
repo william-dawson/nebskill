@@ -50,9 +50,11 @@ def effective_backend(cli_backend: str | None) -> str:
 
 def attempt_name(backend: str, *, optimizer=None, n_images=None,
                  spring_constant=None, method=None, max_step=None,
-                 max_steps=None, seeded=False) -> str:
+                 max_steps=None, seeded=False, extra=None) -> str:
     """Deterministic, readable attempt directory name from the parameters.
-    Identical parameters → identical name (reused); any difference → new dir."""
+    Identical parameters → identical name (reused); any difference → new dir.
+    `extra` carries backend-specific distinguishing tokens (e.g. ORCA's
+    neb-type / optimizer) so those param sweeps also get their own directory."""
     parts = [backend]
     if optimizer and str(optimizer).upper() != "FIRE":
         parts.append(str(optimizer).lower())
@@ -63,6 +65,9 @@ def attempt_name(backend: str, *, optimizer=None, n_images=None,
     if max_step:        parts.append(f"s{max_step}")
     if max_steps:       parts.append(f"i{max_steps}")
     if seeded:          parts.append("seeded")
+    for tok in (extra or []):
+        if tok:
+            parts.append(str(tok).lower().replace("-", "").replace(" ", ""))
     return "_".join(parts)
 
 

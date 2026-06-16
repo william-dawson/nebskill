@@ -70,7 +70,7 @@ def main():
         "barrier_deviation_pct":    round(dev_pct, 2) if dev_pct is not None else None,
         "found_lower_barrier":      found_lower,
         "neb_converged":            latest["converged"],
-        "phase1_steps":             neb_result.get("phase1", {}).get("steps_taken"),
+        "phase1_steps":             (neb_result.get("phase1") or {}).get("steps_taken"),
         "phase2_steps":             latest["steps_taken"],
         "phase2_fmax_final":        latest["fmax_final"],
         "neb_energies":             energies,

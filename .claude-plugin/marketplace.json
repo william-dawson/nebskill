@@ -14,8 +14,8 @@
         "url": "git@github.com:william-dawson/nebskill.git",
         "path": "nebskill"
       },
-      "version": "0.20.0",
-      "description": "Nudged Elastic Band calculations for reaction barriers on organic molecules using MACE-OFF23 and the Transition1x dataset. Requires uv; Python dependencies installed automatically. Cluster jobs run via a companion HPC agent plugin (Rikyu/Hokusai).",
+      "version": "0.21.0",
+      "description": "Nudged Elastic Band calculations for reaction barriers on organic molecules using the Transition1x dataset. Backends: MACE-OFF23, PySCF, and native ORCA (NEB-CI). Requires uv; Python dependencies installed automatically. Cluster jobs run via a companion HPC agent plugin (Rikyu/Hokusai).",
       "author": {
         "name": "william-dawson"
       },

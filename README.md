@@ -1,12 +1,15 @@
 # nebskill
 
 A Claude Code plugin for running Nudged Elastic Band (NEB) calculations on
-organic molecules using the Transition1x dataset. Two calculator backends,
+organic molecules using the Transition1x dataset. Three calculator backends,
 chosen at setup by goal:
 
 - **MACE-OFF23** — ML interatomic potential, for exploring many reactions
-- **PySCF** — DFT at the dataset's level of theory (ωB97X/6-31G(d)), the
+- **PySCF** — DFT at the dataset's level of theory (ωB97X/6-31G(d)) via ASE, the
   reference quality, for reproducing or improving on the published barriers
+- **ORCA** — native ORCA jobs (its own Opt / NEB-CI / Freq) at ωB97X/6-31G(d) —
+  the exact method that generated Transition1x, with ORCA's own optimizer and
+  analytic frequencies. Needs an ORCA install on the cluster.
 
 ## Install
 
@@ -38,9 +41,9 @@ Just ask Claude in plain language, for example:
 The skill activates automatically. You can also ask about reaction barriers,
 transition states, or minimum energy paths, or invoke a step directly.
 
-The calculator backend (MACE or PySCF/DFT) is chosen during setup. With the
-PySCF backend you can ask Claude to reproduce the dataset's barriers or hunt
-for reactions where NEB finds a lower barrier than the published value.
+The calculator backend (MACE, PySCF, or ORCA) is chosen during setup. With a DFT
+backend (PySCF or ORCA) you can ask Claude to reproduce the dataset's barriers or
+hunt for reactions where NEB finds a lower barrier than the published value.
 
 ## Skills
 
