@@ -2,7 +2,7 @@
 name: running-neb
 description: >
   Runs NEB to find the minimum energy path and reaction barrier with the
-  configured backend. MACE/PySCF use a two-phase ASE NEB (standard then CI-NEB);
+  configured backend. MACE uses a two-phase ASE NEB (standard then CI-NEB);
   ORCA runs its own native NEB-CI. Writes a live progress log; can be
   backgrounded and watched. Use after relaxing-endpoints. If convergence fails
   (returncode=4), use monitoring-convergence.
@@ -12,7 +12,7 @@ allowed-tools: Bash Read Write
 Finds the minimum energy path between the relaxed endpoints. How depends on the
 backend (chosen at setup):
 
-- **mace / pyscf** — ASE drives two phases: standard NEB (phase 1) then Climbing
+- **mace** — ASE drives two phases: standard NEB (phase 1) then Climbing
   Image NEB (phase 2).
 - **orca** — a single native ORCA NEB-CI job (ORCA's own band optimizer); this is
   the method that generated Transition1x.
@@ -25,7 +25,7 @@ The command and outputs are the same either way; the parameters differ.
 nebskill-neb --reaction-id INT
 ```
 
-### MACE / PySCF (ASE) override parameters
+### MACE (ASE) override parameters
 
 Used by `/nebskill:monitoring-convergence` on retry:
 
@@ -68,8 +68,8 @@ nebskill-neb --reaction-id INT \
 
 ## Watch progress
 
-For long runs (especially the **pyscf** backend, which can take hours), run the
-command in the **background**, then check on it whenever you like:
+For long runs (especially the **orca** DFT backend, which can take hours), run
+the command in the **background**, then check on it whenever you like:
 
 ```bash
 nebskill-monitor --reaction-id INT          # per-step convergence so far
@@ -78,8 +78,8 @@ nebskill-monitor --reaction-id INT --tail 20
 
 It prints each optimizer step (fmax, barrier estimate, which image is the peak)
 plus a latest-step summary, and works both during the run and after it finishes.
-(This jsonl trace is written by the MACE/PySCF path; the **orca** backend logs to
-its own `neb.out` instead — watch that with the HPC agent's `fs_tail` during a
+(This jsonl trace is written by the MACE path; the **orca** backend logs to its
+own `neb.out` instead — watch that with the HPC agent's `fs_tail` during a
 cluster run, per `/nebskill:running-on-the-cluster`.)
 
 If the trace shows a stall — fmax plateauing well above target, fmax oscillating,
@@ -94,7 +94,7 @@ Unless overridden:
 n_images = max(10, round(path_length_Å / 1.0))
 ```
 
-## Phases (MACE / PySCF only)
+## Phases (MACE only)
 
 The two phases below are the **ASE** path. The **orca** backend does not use
 them — `--neb-type` selects ORCA's own variant (e.g. NEB-CI converges the band

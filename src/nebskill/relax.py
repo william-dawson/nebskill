@@ -79,7 +79,7 @@ def main():
     parser.add_argument("--output-dir", default=None)
     parser.add_argument("--fmax", type=float, default=None,
                         help="Override relaxation fmax (for tighter re-relaxation)")
-    parser.add_argument("--backend", choices=["mace", "pyscf", "orca"], default=None,
+    parser.add_argument("--backend", choices=["mace", "orca"], default=None,
                         help="Override calculator backend (default from config)")
     args = parser.parse_args()
 
@@ -118,7 +118,7 @@ def main():
           f"(charge={charge}, spin={spin})")
 
     # ORCA is an external binary with its own optimizer — drive it natively
-    # rather than through an ASE calculator. mace/pyscf use the ASE path.
+    # rather than through an ASE calculator. mace uses the ASE path.
     use_orca = backend == "orca"
     calc = None if use_orca else make_calculator(cfg, charge=charge, spin=spin)
     results = {}

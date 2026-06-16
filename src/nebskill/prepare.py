@@ -38,12 +38,10 @@ WORKER_ENV = {
 
 # Advisory resource hints by backend. The HPC agent's own config decides the
 # real account/partition/walltime; these are just starting points it can honor
-# or override. MACE is cheap (an ML potential); PySCF is real DFT.
+# or override. MACE is cheap (an ML potential); ORCA is real DFT.
 RESOURCE_HINTS = {
     "mace":  {"cpus": 8,  "gpus": 0, "walltime_hint": "00:30:00",
               "note": "MACE-OFF ML potential; fast. GPU optional (faster), CPU fine."},
-    "pyscf": {"cpus": 16, "gpus": 0, "walltime_hint": "04:00:00",
-              "note": "DFT (wB97X/6-31G(d)); a full NEB is many gradient calls."},
     "orca":  {"cpus": 8,  "gpus": 0, "walltime_hint": "08:00:00",
               "note": "Native ORCA DFT job; cpus follow the orca nprocs config "
                       "(MPI ranks must match --ntasks). NEB can be long."},
@@ -84,7 +82,7 @@ class JobPlan:
     resources: dict                # advisory cpus/gpus/walltime
     inputs_ready: bool             # all `upload` files exist locally
     pre_launch: str = ""           # shell lines for the agent's JobSpec.pre_launch
-                                   # (e.g. ORCA module loads); "" for mace/pyscf
+                                   # (e.g. ORCA module loads); "" for mace
     missing: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -142,7 +140,7 @@ def _finish(plan: JobPlan) -> JobPlan:
 
 def _resources_and_prelaunch(backend_eff: str, step: str) -> tuple[dict, str]:
     """Resource hint + pre_launch for the plan. ORCA pulls its rank count /
-    memory / module-loads from the configured recipe; mace/pyscf use the static
+    memory / module-loads from the configured recipe; mace uses the static
     hints and no pre_launch."""
     res = dict(RESOURCE_HINTS.get(backend_eff, RESOURCE_HINTS["mace"]))
     if backend_eff == "orca":
@@ -205,7 +203,7 @@ def prepare_neb(reaction_id: int, output_dir: str | None = None, *,
     write_latest(root, attempt)   # downstream commands target this attempt
 
     # endpoints from the reaction root; relaxed endpoints from the matching
-    # backend's relax dir (a pyscf NEB must use pyscf-relaxed endpoints).
+    # backend's relax dir (an orca NEB must use orca-relaxed endpoints).
     # refresh=True so a re-relaxation propagates into an existing attempt dir.
     _stage(root / "endpoints.json", out_dir / "endpoints.json", refresh=True)
     _stage(root / relax_dirname(backend_eff) / "relaxed_endpoints.json",

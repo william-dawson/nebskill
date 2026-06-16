@@ -62,7 +62,7 @@ Map the plan onto the agent's `submit_job` JobSpec:
 - `environment:` the plan's `environment` (so `NEBSKILL_WORKER=1` etc. are set)
 - `pre_launch:` the plan's `pre_launch` — for the **orca** backend this carries
   the `module load` / `export` lines ORCA needs (binary's MPI libs, XTBPATH).
-  Empty for mace/pyscf. These must run before the executable, which is exactly
+  Empty for mace. These must run before the executable, which is exactly
   what JobSpec.pre_launch is for.
 - `resources:` honor the plan's `cpus`/`gpus`. For **orca**, the plan also gives
   `ntasks` and `mem_mb` derived from the ORCA `nprocs` recipe — pass `ntasks`
@@ -83,8 +83,8 @@ Call `submit_job`; keep the returned `job_id`.
 Poll `get_job_status(job_id)` until it leaves `queued`/`active`. While it runs, if
 the plan has a `progress_file`, `fs_tail` the remote `<job dir>/<progress_file>`
 to watch convergence live. The format depends on the backend:
-- **mace / pyscf** → `progress_file` is `neb_progress_NNNN.jsonl`, one JSON line
-  per optimizer step with `fmax`, the running `barrier_est_ev`, and the peak image.
+- **mace** → `progress_file` is `neb_progress_NNNN.jsonl`, one JSON line per
+  optimizer step with `fmax`, the running `barrier_est_ev`, and the peak image.
 - **orca** → `progress_file` is `neb.out`, ORCA's own NEB log: watch its
   per-iteration table (max/RMS perpendicular force, the climbing-image energy).
 
@@ -111,11 +111,11 @@ trace, and `nebskill-summary --reaction-id 42` tabulates every attempt.
 ## Why this never clobbers
 
 The attempt directory is derived from the parameters (`nebskill-plan` names it,
-e.g. `mace_ode_n13` vs `pyscf_n20`), both locally (`local_dir`) and remotely
+e.g. `mace_ode_n13` vs `orca_n20_nebci`), both locally (`local_dir`) and remotely
 (`remote_subdir`). Different parameters → different directories on both sides, so
 concurrent or repeated runs never overwrite each other, and downloaded results
 always land back with the arguments that produced them. relax is namespaced per
-backend (`relax_mace` / `relax_pyscf`) so a pyscf NEB never picks up mace-relaxed
+backend (`relax_mace` / `relax_orca`) so an orca NEB never picks up mace-relaxed
 endpoints.
 
 ## Running fully locally instead
@@ -124,4 +124,4 @@ If Claude is already on the login node with a shared filesystem (and, for mace, 
 CPU is acceptable), skip the agent entirely: just run `nebskill-relax` /
 `nebskill-neb` / `nebskill-frequencies` directly. They do the same planning
 in-process and compute in the attempt directory. Use the cluster loop when the
-compute belongs on a batch node (especially pyscf DFT, or GPU MACE).
+compute belongs on a batch node (especially ORCA DFT, or GPU MACE).

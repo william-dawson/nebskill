@@ -211,14 +211,14 @@ def main():
                         help="Seed the band from a trajectory file (e.g. a "
                              "MACE-converged neb_trajectory.xyz) instead of "
                              "interpolating; uses its last n_images frames")
-    parser.add_argument("--backend", choices=["mace", "pyscf", "orca"], default=None,
+    parser.add_argument("--backend", choices=["mace", "orca"], default=None,
                         help="Override calculator backend (default from config)")
     parser.add_argument("--tag", default=None,
                         help="Optional override for the attempt subdirectory name "
                              "(by default it is derived automatically from the "
                              "parameters; you normally don't need this)")
 
-    # --- ORCA backend only: native ORCA NEB levers (ignored by mace/pyscf) ---
+    # --- ORCA backend only: native ORCA NEB levers (ignored by mace) ---
     orca_grp = parser.add_argument_group(
         "ORCA NEB", "Native ORCA NEB options (backend=orca only)")
     orca_grp.add_argument("--neb-type", default=None,
@@ -378,7 +378,7 @@ def main():
         print(f"Results: {out_dir / 'neb_result.json'}")
         return
 
-    # --- mace / pyscf backends: ASE two-phase NEB -------------------------- #
+    # --- mace backend: ASE two-phase NEB ----------------------------------- #
     calc     = make_calculator(cfg, charge=endpoints.get("charge", 0),
                                spin=endpoints.get("spin", 0))
     method   = neb_cfg["method"]

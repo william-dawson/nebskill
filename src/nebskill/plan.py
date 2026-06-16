@@ -31,7 +31,7 @@ def main():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--reaction-id", type=int, required=True)
     common.add_argument("--output-dir", default=None)
-    common.add_argument("--backend", choices=["mace", "pyscf", "orca"], default=None)
+    common.add_argument("--backend", choices=["mace", "orca"], default=None)
 
     p_relax = sub.add_parser("relax", parents=[common])
     p_relax.add_argument("--fmax", type=float, default=None)

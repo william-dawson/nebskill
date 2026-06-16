@@ -5,12 +5,12 @@ dataset:
   download_url: https://ndownloader.figshare.com/files/36035789
 
 calculator:
-  backend: mace               # mace | pyscf | orca
+  backend: mace               # mace | orca
   # --- mace backend ---
   model_size: medium          # small | medium | large
   device: auto                # auto | cpu | cuda
   dtype: float64
-  # --- pyscf / orca backends (reproduce Transition1x level of theory) ---
+  # --- orca backend: level of theory (reproduce Transition1x) ---
   xc: wb97x                   # ωB97X, as in the dataset paper
   basis: 6-31g(d)             # 6-31G(d), as in the dataset paper
   # --- orca backend (native ORCA jobs: Opt / NEB-CI / Freq) ---

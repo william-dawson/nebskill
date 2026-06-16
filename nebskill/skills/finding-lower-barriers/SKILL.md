@@ -111,14 +111,14 @@ A real flaw requires **ALL** of the following — anything less is a null result
 - [ ] **Lower by a meaningful margin** — barrier below the dataset's by > ~0.1 eV
       (well beyond the ~1 meV reproduction noise and NEB convergence scatter).
 - [ ] **Same level of theory** — re-run / re-evaluate the new TS with
-      `--backend pyscf` (ωB97X/6-31G(d)). A MACE-only win is just MACE error and
-      does **not** count.
+      `--backend orca` (ωB97X/6-31G(d), the dataset's own method). A MACE-only
+      win is just MACE error and does **not** count.
 - [ ] **Same reaction** — the new path connects the *same* relaxed reactant and
       product, not a different pair. Verify the endpoints match.
 - [ ] **Genuine first-order saddle** — the new TS is a true saddle (one imaginary
       vibrational mode), not a shoulder or higher-order point. Verify with
       `/nebskill:verifying-transition-state` (`nebskill-frequencies`): MACE for a
-      cheap pre-check, then PySCF to confirm. A `minimum` or `higher_order_saddle`
+      cheap pre-check, then ORCA to confirm. A `minimum` or `higher_order_saddle`
       verdict disqualifies the result.
 - [ ] **Smooth path** — the converged energy profile is continuous, no kinks.
 

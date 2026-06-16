@@ -19,16 +19,16 @@ vibrational frequency (the reaction coordinate), all others real.
 nebskill-frequencies --reaction-id INT
 ```
 
-Computes a finite-difference Hessian (6N+1 force evaluations) at the converged
-NEB transition state with the configured backend. With MACE it's cheap — run it
-directly as a local pre-check. With PySCF it's a real DFT cost: plan it with
+At the converged NEB transition state, with MACE this is a finite-difference
+Hessian (6N+1 force evaluations) — cheap, run it directly as a local pre-check.
+With ORCA it's an analytic Hessian (! Freq), a real DFT cost: plan it with
 `nebskill-plan frequencies --reaction-id INT` and dispatch it to a compute node
 via `/nebskill:running-on-the-cluster`.
 
 Options:
 - `--source dataset` — analyze the dataset's stored `transition_state` instead
   of the NEB TS (sanity check).
-- `--backend mace|pyscf` — MACE for a cheap pre-check, PySCF for a DFT-level
+- `--backend mace|orca` — MACE for a cheap pre-check, ORCA for a DFT-level
   confirmation.
 - `--imag-cutoff 50` — cm⁻¹ below which an imaginary mode is treated as
   near-zero translational/rotational noise rather than a real saddle mode.
@@ -48,11 +48,11 @@ the lowest real mode, and a verdict:
 
 In `/nebskill:finding-lower-barriers`, a lower barrier only counts if its TS is
 a real saddle. Use MACE first as a cheap filter, then confirm the survivor with
-PySCF:
+ORCA:
 
 ```bash
 nebskill-frequencies --reaction-id INT --backend mace    # cheap pre-check
-nebskill-frequencies --reaction-id INT --backend pyscf   # DFT confirmation
+nebskill-frequencies --reaction-id INT --backend orca    # DFT confirmation
 ```
 
 If the verdict is `minimum` or `higher_order_saddle`, the "lower barrier" is not

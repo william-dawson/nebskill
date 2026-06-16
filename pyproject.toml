@@ -1,6 +1,6 @@
 [project]
 name = "nebskill"
-version = "0.21.0"
+version = "0.22.0"
 description = "Nudged Elastic Band calculations for reaction barriers using MACE-OFF and Transition1x"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -13,7 +13,6 @@ dependencies = [
     "pyyaml>=6.0",
     "matplotlib>=3.8",
     "numpy>=1.26",
-    "pyscf>=2.5",
 ]
 
 [project.scripts]

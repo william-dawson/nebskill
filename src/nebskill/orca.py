@@ -1,7 +1,7 @@
 """Native ORCA backend: drive ORCA's own Opt / NEB-CI / Freq instead of using
 ASE as the force engine.
 
-Unlike mace/pyscf (in-process ASE calculators), ORCA is an external binary with
+Unlike mace (an in-process ASE calculator), ORCA is an external binary with
 its own geometry optimizer, nudged-elastic-band, and analytic frequencies. So
 this backend writes an ORCA input file, invokes the `orca` binary once per job,
 and parses the output back into the *same* JSON schema the ASE path produces
@@ -48,7 +48,7 @@ def level_of_theory(config: dict) -> str:
 
 
 def _mult_from_spin(spin: int) -> int:
-    """ASE/PySCF spin (n_alpha - n_beta = 2S) -> ORCA spin multiplicity 2S+1."""
+    """ASE spin (n_alpha - n_beta = 2S) -> ORCA spin multiplicity 2S+1."""
     return int(spin) + 1
 
 

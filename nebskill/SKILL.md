@@ -2,8 +2,8 @@
 name: nebskill
 description: >
   Runs Nudged Elastic Band (NEB) calculations to find minimum energy paths
-  and reaction barriers for organic molecules. The force calculator is either
-  the MACE-OFF23 ML potential or PySCF DFT (ωB97X/6-31G(d)) — chosen at setup —
+  and reaction barriers for organic molecules. The calculator is either the
+  MACE-OFF23 ML potential or native ORCA DFT (ωB97X/6-31G(d)) — chosen at setup —
   sourcing atomic configurations from the Transition1x dataset. Activates when
   the user asks about transition states, reaction barriers, minimum energy
   paths, activation energies, or NEB calculations for organic molecules.
@@ -11,13 +11,14 @@ license: MIT
 compatibility: >
   Requires uv (https://docs.astral.sh/uv/getting-started/installation/).
   All Python dependencies install automatically via uv. Hardware depends on the
-  backend: MACE benefits from a GPU, PySCF DFT runs on CPU. Internet access
-  required for model and dataset downloads on first use.
+  backend: MACE benefits from a GPU, ORCA DFT runs on CPU. The ORCA backend needs
+  an ORCA install on the cluster. Internet access required for model and dataset
+  downloads on first use.
 metadata:
   author: knomura
   version: "0.1.0"
   dataset: transition1x
-  backends: mace-off, pyscf
+  backends: mace-off, orca
 allowed-tools: Bash Read Write
 ---
 
@@ -27,7 +28,7 @@ Finds the minimum energy path (MEP) and activation barrier between reactant
 and product configurations using the Nudged Elastic Band method. Reaction
 endpoints come from the Transition1x dataset (~10k organic reactions with DFT
 reference data). The configured calculator — the MACE-OFF23 ML potential or
-PySCF DFT — handles force evaluations.
+native ORCA DFT — handles the energetics.
 
 Background reading available in `${CLAUDE_PLUGIN_ROOT}/references/`:
 `neb_method.md`, `mace_off_usage.md`, `transition1x_schema.md`
@@ -85,9 +86,9 @@ active configuration:
 
 | Parameter | Value | Source |
 |---|---|---|
-| Calculator backend | mace or pyscf | neb_local.yaml (chosen at setup) |
+| Calculator backend | mace or orca | neb_local.yaml (chosen at setup) |
 | MACE model size (mace backend) | medium | default |
-| DFT level (pyscf backend) | ωB97X/6-31G(d) | default |
+| DFT level (orca backend) | ωB97X/6-31G(d) | default |
 | NEB images | auto | default |
 | Spring constant k | 0.1 eV/Å | default |
 | Phase 1 fmax | 0.5 eV/Å | default |
@@ -96,7 +97,7 @@ active configuration:
 
 The backend is fixed at setup time (`/nebskill:configuring-machine`). To change
 it for this project, edit `calculator.backend` in `neb_local.yaml`, or override
-a single run with `--backend mace|pyscf` on the relax/neb commands.
+a single run with `--backend mace|orca` on the relax/neb commands.
 
 Then ask:
 > "Shall I proceed with these settings, or would you like to change anything?"

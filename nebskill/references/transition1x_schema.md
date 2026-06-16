@@ -23,7 +23,8 @@ charge or spin. The reactions are neutral GDB7-derived CHNO species, so:
   (1) for odd (radicals). This is the parity-correct default.
 
 `nebskill-load` computes and records `charge`, `spin`, and `n_electrons` in
-endpoints.json. The PySCF backend uses them (RKS for spin 0, UKS otherwise).
+endpoints.json. The ORCA backend uses them (ORCA picks RHF/UHF reference from the
+spin multiplicity 2S+1).
 To validate the inference, compare a single-point energy at the stored
 `reactant`/`transition_state` geometry against `dft_e_reactant_ev` /
 `dft_e_ts_ev`; a match confirms charge/spin and the level of theory.

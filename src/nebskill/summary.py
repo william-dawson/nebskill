@@ -62,7 +62,7 @@ def main():
               f"{'YES' if r.get('found_lower_barrier') else '':>6}")
 
     lowers = [name for name, r in rows
-              if r.get("found_lower_barrier") and r.get("backend") == "pyscf"]
+              if r.get("found_lower_barrier") and r.get("backend") == "orca"]
     if lowers:
         print(f"\nDFT-level lower-barrier candidates: {', '.join(lowers)} "
               f"(verify the saddle with nebskill-frequencies before claiming).")

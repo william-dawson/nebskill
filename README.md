@@ -1,15 +1,15 @@
 # nebskill
 
 A Claude Code plugin for running Nudged Elastic Band (NEB) calculations on
-organic molecules using the Transition1x dataset. Three calculator backends,
+organic molecules using the Transition1x dataset. Two calculator backends,
 chosen at setup by goal:
 
-- **MACE-OFF23** — ML interatomic potential, for exploring many reactions
-- **PySCF** — DFT at the dataset's level of theory (ωB97X/6-31G(d)) via ASE, the
-  reference quality, for reproducing or improving on the published barriers
+- **MACE-OFF23** — ML interatomic potential (in-process via ASE), for exploring
+  many reactions cheaply
 - **ORCA** — native ORCA jobs (its own Opt / NEB-CI / Freq) at ωB97X/6-31G(d) —
-  the exact method that generated Transition1x, with ORCA's own optimizer and
-  analytic frequencies. Needs an ORCA install on the cluster.
+  the exact method that generated Transition1x, the reference quality for
+  reproducing or improving on the published barriers, with ORCA's own optimizer
+  and analytic frequencies. Needs an ORCA install on the cluster.
 
 ## Install
 
@@ -41,16 +41,16 @@ Just ask Claude in plain language, for example:
 The skill activates automatically. You can also ask about reaction barriers,
 transition states, or minimum energy paths, or invoke a step directly.
 
-The calculator backend (MACE, PySCF, or ORCA) is chosen during setup. With a DFT
-backend (PySCF or ORCA) you can ask Claude to reproduce the dataset's barriers or
-hunt for reactions where NEB finds a lower barrier than the published value.
+The calculator backend (MACE or ORCA) is chosen during setup. With the ORCA DFT
+backend you can ask Claude to reproduce the dataset's barriers or hunt for
+reactions where NEB finds a lower barrier than the published value.
 
 ## Skills
 
 The skills run in pipeline order:
 
 - **`/nebskill:configuring-machine`** — one-time setup: backend choice (MACE or
-  PySCF), installing/connecting the companion HPC agent, and `uv` install.
+  ORCA), installing/connecting the companion HPC agent, and `uv` install.
 - **`/nebskill:loading-reaction`** — load a reaction from Transition1x and
   extract NEB endpoints.
 - **`/nebskill:relaxing-endpoints`** — relax reactant and product with the
@@ -82,4 +82,5 @@ The skills run in pipeline order:
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - For cluster runs: a companion HPC agent plugin (Rikyu for AI4S, Hokusai for
   HBW2). Optional if running locally on a shared-filesystem login node.
-- Hardware depends on the backend: MACE benefits from a GPU; PySCF DFT runs on CPU
+- Hardware depends on the backend: MACE benefits from a GPU; ORCA DFT runs on CPU
+- For the ORCA backend: an ORCA install on the cluster (binary + modules)

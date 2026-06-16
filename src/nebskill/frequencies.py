@@ -2,9 +2,9 @@
 Vibrational analysis of a transition state: confirm it is a genuine first-order
 saddle (exactly one imaginary mode).
 
-Computes a finite-difference Hessian with the configured calculator via ASE's
-Vibrations (6N+1 force evaluations). Cheap with MACE; with PySCF it is a real
-DFT cost, so like relax/neb it is planned with nebskill-plan and dispatched to a
+With MACE this is a finite-difference Hessian via ASE's Vibrations (6N+1 force
+evaluations), cheap. With ORCA the Hessian is analytic (! Freq) and a real DFT
+cost, so like relax/neb it is planned with nebskill-plan and dispatched to a
 compute node by the HPC agent (see /nebskill:running-on-the-cluster).
 
 Verdict:
@@ -55,7 +55,7 @@ def main():
     parser.add_argument("--imag-cutoff", type=float, default=50.0,
                         help="cm^-1; imaginary modes below this are treated as "
                              "near-zero trans/rot noise, not real saddle modes")
-    parser.add_argument("--backend", choices=["mace", "pyscf", "orca"], default=None)
+    parser.add_argument("--backend", choices=["mace", "orca"], default=None)
     parser.add_argument("--tag", default=None,
                         help="Analyze the TS of a tagged attempt subdirectory")
     args = parser.parse_args()
