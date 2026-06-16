@@ -10,3 +10,4 @@ __pycache__/
 .python-version
 screen.png
 .DS_Store
+config.json

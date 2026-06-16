@@ -120,7 +120,8 @@ def write_neb_input(path: Path, reactant: Atoms, charge: int, mult: int,
 
     # ORCA's NImages counts INTERMEDIATE images (it adds the two fixed endpoints
     # itself); our n_images is the TOTAL band size (endpoints included), so emit
-    # n_images - 2. _count_images_from_out reverses this (+2) when slicing.
+    # n_images - 2. Confirmed against a real run: the NEB.log reports nim = our
+    # n_images, and the final band (neb_MEP_trj.xyz) has exactly n_images frames.
     n_intermediate = max(1, int(params["n_images"]) - 2)
     neb = [f' Product "{product_file}"',
            f' NImages {n_intermediate}']
@@ -208,25 +209,27 @@ def read_final_geometry(job_dir: Path, basename: str) -> Atoms:
     return read(str(job_dir / f"{basename}.xyz"))
 
 
-def parse_neb_path(job_dir: Path, basename: str, out_text: str,
+def parse_neb_path(job_dir: Path, basename: str, out_text: str | None = None,
                    n_total: int | None = None) -> dict:
-    """Energies (eV, relative to the reactant) and geometries of the converged
-    NEB path, plus the transition-state image index.
+    """Energies (Hartree) and geometries of the final NEB band, plus the
+    transition-state image index.
 
-    Geometries come from ORCA's MEP trajectory file (robust, ASE-read). Per-image
-    energies are read from that trajectory's comment lines when present, else
-    from the path-summary table in the .out. The TS is the highest-energy image
-    (for NEB-CI the climbing image).
+    Validated against real ORCA 6.1 output. Geometries come from
+    <base>_MEP_trj.xyz (the final band, ASE-read). Per-image energies come from
+    that file's comment lines — ORCA writes each as
+    ``Coordinates from ORCA-job ... E <Eh>`` (free text, NOT extxyz key=value),
+    aligned 1:1 with the geometry frames. The fallback is the final ``energy :``
+    line in <base>.NEB.log. ORCA 6.1 does NOT print a "PATH SUMMARY" table, so we
+    do not look for one. The TS is the highest-energy image (the NEB-CI climber).
 
-    `n_total` is the expected total band size (endpoints included); when given it
-    is used to slice the final band out of a multi-iteration trajectory rather
-    than relying on parsing ORCA's image count from the log.
+    `n_total` is the expected band size (endpoints included); used only to trim a
+    longer trajectory to its final band.
     """
     from ase.io import read
+    job_dir = Path(job_dir)
 
-    # ORCA writes the final band to <base>_MEP_trj.xyz (a multi-frame xyz);
-    # some variants also produce <base>_MEP_ALL_trj.xyz. Prefer the per-iteration
-    # final MEP.
+    # <base>_MEP_trj.xyz is the final band; <base>_MEP_ALL_trj.xyz is the full
+    # iteration history (fallback). Prefer the final band.
     traj = None
     for name in (f"{basename}_MEP_trj.xyz", f"{basename}_MEP_ALL_trj.xyz"):
         p = job_dir / name
@@ -239,28 +242,19 @@ def parse_neb_path(job_dir: Path, basename: str, out_text: str,
             f"(expected {basename}_MEP_trj.xyz)")
 
     frames = read(str(traj), index=":")
-    n_band = n_total or _count_images_from_out(out_text, len(frames))
-    n_band = min(n_band, len(frames))            # never slice past what exists
-    band = frames[-n_band:]
-
-    energies_eh = _energies_from_frames(band)
+    energies_eh = _energies_from_trj(traj)          # one per frame, or None
     if energies_eh is None:
-        energies_eh = _energies_from_path_summary(out_text, len(band))
+        energies_eh = _neb_log_energies(job_dir, basename)   # final band only
     if energies_eh is None:
         raise ValueError(
-            "Could not parse NEB image energies from ORCA output "
-            "(neither trajectory comments nor a PATH SUMMARY table matched). "
-            "This is the ORCA-version output-parsing seam — check the .out.")
+            f"Could not parse NEB image energies from {traj.name} comments or "
+            f"{basename}.NEB.log — ORCA output-parsing seam, check the job dir.")
 
-    # Keep energies and band the same length so ts_idx is a valid band index.
-    # If the summary over-collected rows, the final path is the last len(band).
-    if len(energies_eh) != len(band):
-        if len(energies_eh) > len(band):
-            energies_eh = energies_eh[-len(band):]
-        else:
-            raise ValueError(
-                f"ORCA path energies ({len(energies_eh)}) fewer than band "
-                f"frames ({len(band)}) — output-parsing seam, check the .out.")
+    # Align geometry frames and energies to a common final band.
+    n = min(len(frames), len(energies_eh))
+    band, energies_eh = frames[-n:], energies_eh[-n:]
+    if n_total and len(band) > n_total:
+        band, energies_eh = band[-n_total:], energies_eh[-n_total:]
 
     e0 = energies_eh[0]
     energies_ev = [(e - e0) * Hartree for e in energies_eh]
@@ -273,50 +267,52 @@ def parse_neb_path(job_dir: Path, basename: str, out_text: str,
     }
 
 
-def _count_images_from_out(out_text: str, n_frames: int) -> int:
-    """Total images including endpoints; default to the whole last block."""
-    m = re.search(r"Number of images\D+(\d+)", out_text)
-    if m:
-        # ORCA's NImages counts intermediate images; +2 for the fixed endpoints.
-        return int(m.group(1)) + 2
-    return n_frames
+_TRJ_E = re.compile(r"\bE\s+(-?\d+\.\d+)")
 
 
-def _energies_from_frames(band: list[Atoms]) -> list[float] | None:
-    """Energies (Hartree) from extxyz comment lines, if ORCA wrote them."""
-    out = []
-    for a in band:
-        e = a.info.get("E") or a.info.get("energy")
-        if e is None:
-            return None
+def _energies_from_trj(traj_path: Path) -> list[float] | None:
+    """Per-frame energies (Hartree) from an ORCA MEP trajectory's comment lines.
+
+    Each frame is `<natoms>\\n<comment>\\n<natoms lines>`; ORCA's comment carries
+    `... E <Eh>`. Returns one energy per frame (file order), or None if any frame
+    lacks a parseable energy."""
+    try:
+        lines = Path(traj_path).read_text().splitlines()
+    except OSError:
+        return None
+    energies, i = [], 0
+    while i < len(lines):
+        head = lines[i].strip()
+        if not head:
+            i += 1
+            continue
         try:
-            out.append(float(e))
-        except (TypeError, ValueError):
+            nat = int(head)
+        except ValueError:
             return None
-    return out
+        comment = lines[i + 1] if i + 1 < len(lines) else ""
+        m = _TRJ_E.search(comment)
+        if not m:
+            return None
+        energies.append(float(m.group(1)))
+        i += 2 + nat
+    return energies or None
 
 
-def _energies_from_path_summary(out_text: str, n: int) -> list[float] | None:
-    """Parse the 'PATH SUMMARY' table; return absolute energies in Hartree.
-
-    The table lists per-image E(Eh) and dE(kcal/mol). We read the absolute
-    E(Eh) column. Returns None if the table can't be located/parsed.
-    """
-    idx = out_text.rfind("PATH SUMMARY")
-    if idx == -1:
+def _neb_log_energies(job_dir: Path, basename: str) -> list[float] | None:
+    """Per-image energies (Hartree) from the last `energy :` line of
+    <base>.NEB.log — ORCA's machine-readable NEB summary."""
+    log = Path(job_dir) / f"{basename}.NEB.log"
+    if not log.exists():
         return None
-    block = out_text[idx: idx + 4000].splitlines()
-    eh = []
-    for line in block:
-        # rows look like:  "   3   -154.123456    12.34   ..."  (image, E(Eh), dE)
-        m = re.match(r"\s*\d+\s+(-?\d+\.\d{4,})", line)
-        if m:
-            eh.append(float(m.group(1)))
-    if len(eh) < 2:
+    rows = re.findall(r"^\s*energy\s*:\s*(.+)$", log.read_text(), re.M | re.I)
+    if not rows:
         return None
-    # If the window over-collected (a trailing table, extra rows), the final
-    # path is the last n rows. The caller reconciles length against the band.
-    return eh[-n:] if n and len(eh) > n else eh
+    try:
+        vals = [float(v) for v in rows[-1].split()]
+    except ValueError:
+        return None
+    return vals or None
 
 
 _FREQ_LINE = re.compile(r"^\s*\d+:\s+(-?\d+\.\d+)\s+cm", re.M)
@@ -401,9 +397,13 @@ def run_neb(reactant: Atoms, product: Atoms, charge: int, mult: int,
     rc = run_orca(inp, config, out)
     elapsed = round(time.monotonic() - t0, 2)
     text = out.read_text() if out.exists() else ""
-    converged = rc == 0 and _converged(
-        text, ("THE NEB OPTIMIZATION HAS CONVERGED",
-               "THE OPTIMIZATION HAS CONVERGED", "HURRAY"))
+    # ORCA writes a *_converged.xyz only when the (CI) NEB converges — a more
+    # reliable signal than banner-string matching across ORCA versions. Accept
+    # either that file or a known convergence banner.
+    converged = rc == 0 and (
+        any(job_dir.glob(f"{Path(inp).stem}*converged*.xyz"))
+        or _converged(text, ("THE NEB OPTIMIZATION HAS CONVERGED",
+                             "THE OPTIMIZATION HAS CONVERGED", "HURRAY")))
     # A failed/crashed NEB may leave no MEP trajectory to parse. Don't let that
     # become an uncaught traceback — return a non-converged result so neb.py can
     # exit 4 (the convergence-failure contract monitoring-convergence keys on).
