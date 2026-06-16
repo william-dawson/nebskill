@@ -11,3 +11,4 @@ __pycache__/
 screen.png
 .DS_Store
 config.json
+remotemanager.log

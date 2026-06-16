@@ -1,6 +1,0 @@
-[20260616 222519 WARNING  ]: stderr from exec: |
-  Traceback (most recent call last):
-    File "<string>", line 16, in <module>
-    File "<string>", line 7, in geom
-  KeyError: 'transition_state'
-  
