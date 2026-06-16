@@ -326,8 +326,44 @@ def prepare_frequencies(reaction_id: int, output_dir: str | None = None, *,
     ))
 
 
+def prepare_optts(reaction_id: int, output_dir: str | None = None, *,
+                  backend: str | None = None, imag_cutoff: float = 50.0,
+                  tag: str | None = None) -> JobPlan:
+    """Plan an OptTS refinement of an attempt's NEB transition state. Like
+    frequencies, it operates inside the attempt directory and needs the converged
+    NEB outputs + the relaxed endpoints (for the refined barrier)."""
+    backend_eff = effective_backend(backend)
+    root = reaction_root(reaction_id, output_dir)
+    out_dir = resolve_out_dir(reaction_id, output_dir, tag)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    remote_subdir = (root.name if out_dir == root
+                     else f"{root.name}/{out_dir.name}")
+
+    upload = ["endpoints.json", "relaxed_endpoints.json",
+              "neb_result.json", "neb_trajectory.xyz"]
+    cfg_name = _stage_local_cfg(out_dir)
+    if cfg_name:
+        upload.append(cfg_name)
+
+    command = ["nebskill-optts", "--reaction-id", str(reaction_id),
+               "--output-dir", ".", "--imag-cutoff", str(imag_cutoff)]
+    if backend:
+        command += ["--backend", backend]
+
+    resources, pre_launch = _resources_and_prelaunch(backend_eff, "optts")
+    return _finish(JobPlan(
+        step="optts", reaction_id=reaction_id, backend=backend_eff,
+        local_dir=out_dir, remote_subdir=remote_subdir,
+        command=command, environment=dict(WORKER_ENV), upload=upload,
+        download=[f"ts_opt_{backend_eff}.json", "ts_opt.xyz"],
+        progress_file=None, resources=resources, pre_launch=pre_launch,
+        inputs_ready=True,
+    ))
+
+
 PREPARERS = {
     "relax": prepare_relax,
     "neb": prepare_neb,
     "frequencies": prepare_frequencies,
+    "optts": prepare_optts,
 }

@@ -44,6 +44,35 @@ the lowest real mode, and a verdict:
 | 0 | `minimum` | not a TS — the band settled on a minimum/shoulder |
 | > 1 | `higher_order_saddle` | not a clean TS |
 
+## Refining the TS — `nebskill-optts` (ORCA)
+
+A frequency calc at the **raw NEB climbing image** is only a *screen*: the image
+approximates the saddle but isn't the stationary point, so it often shows one
+dominant imaginary mode **plus a small spurious one** (e.g. a soft −50 cm⁻¹ mode
+right at the cutoff). That makes the raw count ambiguous — you can't tell a true
+ridge from a not-quite-optimized first-order saddle.
+
+`nebskill-optts` removes the ambiguity: it runs ORCA **OptTS** to optimize the
+NEB image to the actual saddle, then a frequency calc to confirm.
+
+```bash
+nebskill-optts --reaction-id INT --backend orca
+```
+
+Writes `ts_opt_orca.json` (refined TS energy, forward/reverse barrier vs the
+relaxed endpoints, `n_imaginary`, `verdict`) and `ts_opt.xyz` (the optimized TS,
+ready for an IRC). Exit code 5 if it does **not** refine to a clean first-order
+saddle. Interpretation after refinement:
+- **1 imaginary mode** → genuine TS; the refined barrier is the number to trust.
+- **0** → the NEB low point was a **minimum** — an intermediate; the elementary
+  step is stepwise, not what a single TS describes.
+- **≥2 after optimization** → a true higher-order saddle (a ridge): not a valid
+  TS for this step.
+
+Run OptTS whenever the raw NEB-image frequency is borderline, or before claiming
+any lower barrier in `/nebskill:finding-lower-barriers`. (It confirms the saddle;
+confirming *which endpoints it connects* still needs an IRC.)
+
 ## Using it in a barrier claim
 
 In `/nebskill:finding-lower-barriers`, a lower barrier only counts if its TS is

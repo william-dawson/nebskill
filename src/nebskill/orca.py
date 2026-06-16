@@ -108,6 +108,28 @@ def write_freq_input(path: Path, atoms: Atoms, charge: int, mult: int,
     ]))
 
 
+def write_optts_input(path: Path, atoms: Atoms, charge: int, mult: int,
+                      config: dict) -> None:
+    """Transition-state optimization input (refine a NEB climbing image to a true
+    first-order saddle), with a final analytic frequency calc to confirm it.
+
+    `! OptTS Freq` optimizes to a saddle then computes the Hessian. We compute an
+    exact Hessian up front (`Calc_Hess true`) and recompute it periodically
+    (`Recalc_Hess`) — for small molecules this is cheap and makes OptTS reliably
+    follow the correct (single) negative eigenmode from a NEB guess rather than
+    wandering off it."""
+    oc = _orca_cfg(config)
+    extra = oc.get("simple_input") or ""
+    simple = f"! OptTS Freq {level_of_theory(config)} {extra}".rstrip()
+    path.write_text("\n".join([
+        simple,
+        _pal_block(config),
+        "%geom Calc_Hess true Recalc_Hess 5 end",
+        _xyz_block(atoms, charge, mult),
+        "",
+    ]))
+
+
 def write_neb_input(path: Path, reactant: Atoms, charge: int, mult: int,
                     config: dict, *, product_file: str, params: dict) -> None:
     """NEB input. `product_file`/restart/ts files are referenced by name and
@@ -449,6 +471,55 @@ def frequencies(atoms: Atoms, charge: int, mult: int, config: dict,
         "lowest_real_cm":        round(real[0], 1) if real else None,
         "is_first_order_saddle": verdict == "first_order_saddle",
         "verdict":               verdict,
+    }
+
+
+def optimize_ts(atoms: Atoms, charge: int, mult: int, config: dict,
+                job_dir: Path, imag_cutoff: float = 50.0,
+                label: str = "ts_opt") -> dict:
+    """Refine a TS guess (e.g. a NEB climbing image) to a true first-order saddle
+    with ORCA OptTS, then confirm via the bundled frequency calc.
+
+    Returns the optimized geometry, its energy (eV), convergence, and the saddle
+    verdict (one large imaginary mode = success). This is the step that decides
+    whether a NEB-found low point is a genuine TS or a ridge/shoulder — the NEB
+    climbing image is only an approximation, OptTS lands on the actual stationary
+    point. Pair with an IRC to confirm which endpoints it connects."""
+    import time
+    job_dir = Path(job_dir)
+    inp = job_dir / f"{label}.inp"
+    out = job_dir / f"{label}.out"
+    write_optts_input(inp, atoms, charge, mult, config)
+    t0 = time.monotonic()
+    rc = run_orca(inp, config, out)
+    elapsed = round(time.monotonic() - t0, 2)
+    text = out.read_text() if out.exists() else ""
+
+    converged = rc == 0 and _converged(
+        text, ("THE OPTIMIZATION HAS CONVERGED", "HURRAY"))
+    energy_eh = parse_final_energy_eh(text)
+    freqs = parse_frequencies_cm(text)               # signed cm^-1
+    imag = sorted(round(f, 1) for f in freqs if f < 0 and abs(f) > imag_cutoff)
+    real = sorted(f for f in freqs if f >= 0 or abs(f) <= imag_cutoff)
+    n_imag = len(imag)
+    verdict = ("first_order_saddle" if n_imag == 1 else
+               "minimum" if n_imag == 0 else "higher_order_saddle")
+
+    opt_atoms = None
+    if (job_dir / f"{label}.xyz").exists():
+        opt_atoms = read_final_geometry(job_dir, label)
+
+    return {
+        "converged":             bool(converged),
+        "energy_ev":             float(energy_eh) * Hartree if energy_eh is not None else None,
+        "atoms":                 opt_atoms,
+        "n_imaginary":           n_imag,
+        "imaginary_cm":          [abs(x) for x in imag],
+        "lowest_real_cm":        round(real[0], 1) if real else None,
+        "is_first_order_saddle": verdict == "first_order_saddle",
+        "verdict":               verdict,
+        "wall_time_s":           elapsed,
+        "returncode":            rc,
     }
 
 
