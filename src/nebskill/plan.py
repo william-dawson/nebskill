@@ -20,7 +20,7 @@ import argparse
 import json
 import sys
 
-from nebskill.prepare import (prepare_frequencies, prepare_neb,
+from nebskill.prepare import (prepare_frequencies, prepare_irc, prepare_neb,
                               prepare_optts, prepare_relax)
 
 
@@ -72,6 +72,9 @@ def main():
     p_optts.add_argument("--imag-cutoff", type=float, default=50.0)
     p_optts.add_argument("--tag", default=None)
 
+    p_irc = sub.add_parser("irc", parents=[common])
+    p_irc.add_argument("--tag", default=None)
+
     args = parser.parse_args()
 
     if args.step == "relax":
@@ -98,10 +101,14 @@ def main():
         plan = prepare_frequencies(
             args.reaction_id, args.output_dir, backend=args.backend,
             source=args.source, imag_cutoff=args.imag_cutoff, tag=args.tag)
-    else:
+    elif args.step == "optts":
         plan = prepare_optts(
             args.reaction_id, args.output_dir, backend=args.backend,
             imag_cutoff=args.imag_cutoff, tag=args.tag)
+    else:
+        plan = prepare_irc(
+            args.reaction_id, args.output_dir, backend=args.backend,
+            tag=args.tag)
 
     print(json.dumps(plan.to_dict(), indent=2))
     if not plan.inputs_ready:

@@ -31,6 +31,26 @@ from ase.units import Hartree
 # ORCA basis strings keep their conventional spelling; our config uses lowercase.
 _BASIS_FIX = {"6-31g(d)": "6-31G(d)", "6-31g*": "6-31G*"}
 
+# Covalent radii (Å) for a simple distance-based bond graph — used to compare
+# IRC endpoint connectivity against the relaxed reactant/product.
+_COV = {1: 0.31, 6: 0.76, 7: 0.71, 8: 0.66, 9: 0.57, 16: 1.05, 17: 1.02}
+
+
+def bond_set(atoms: Atoms, scale: float = 1.3) -> set:
+    """Connectivity as a set of frozenset({i,j}) atom-index pairs (a bond if the
+    distance is under scale × the sum of covalent radii). Atom ordering is shared
+    across the TS, IRC endpoints, and relaxed endpoints, so index pairs compare
+    directly — no graph isomorphism needed."""
+    from itertools import combinations
+    pos = atoms.get_positions()
+    num = atoms.get_atomic_numbers()
+    bonds = set()
+    for i, j in combinations(range(len(num)), 2):
+        d = float(np.linalg.norm(pos[i] - pos[j]))
+        if d < scale * (_COV.get(int(num[i]), 0.77) + _COV.get(int(num[j]), 0.77)):
+            bonds.add(frozenset((i, j)))
+    return bonds
+
 
 def _orca_cfg(config: dict) -> dict:
     return config.get("calculator", {}).get("orca", {}) or {}
@@ -520,6 +540,89 @@ def optimize_ts(atoms: Atoms, charge: int, mult: int, config: dict,
         "verdict":               verdict,
         "wall_time_s":           elapsed,
         "returncode":            rc,
+    }
+
+
+def write_irc_input(path: Path, ts_xyzfile: str, charge: int, mult: int,
+                    config: dict, *, hess_filename: str | None = None,
+                    maxiter: int = 100) -> None:
+    """Intrinsic Reaction Coordinate input: roll downhill from the optimized TS
+    in both directions to find the two minima it actually connects.
+
+    Needs the TS Hessian for the initial displacement. If `hess_filename` is
+    given (the .hess from the OptTS Freq run, in the same dir), read it — free,
+    no recompute. Otherwise compute an analytic Hessian here. `ts_xyzfile` is
+    referenced by name and must be in the job directory."""
+    oc = _orca_cfg(config)
+    extra = oc.get("simple_input") or ""
+    simple = f"! IRC {level_of_theory(config)} {extra}".rstrip()
+    irc = [" Direction both", f" MaxIter {int(maxiter)}"]
+    if hess_filename:
+        irc += [" InitHess read", f' Hess_Filename "{hess_filename}"']
+    else:
+        irc += [" InitHess calc_anfreq"]
+    path.write_text("\n".join([
+        simple,
+        _pal_block(config),
+        "%irc",
+        *irc,
+        "end",
+        f"* xyzfile {int(charge)} {int(mult)} {ts_xyzfile}",
+        "",
+    ]))
+
+
+def run_irc(ts_atoms: Atoms, charge: int, mult: int, config: dict,
+            job_dir: Path, *, reactant: Atoms, product: Atoms,
+            hess_filename: str | None = None, label: str = "irc") -> dict:
+    """Run an IRC from a TS and report which minima its two ends connect.
+
+    Compares each IRC endpoint's bond connectivity to the relaxed reactant and
+    product. `connects_reactant_product` is True iff the two ends are the
+    reactant and the product (in either order) — i.e. the TS really is the saddle
+    for THIS reaction. Pass the OptTS .hess as `hess_filename` to skip recomputing
+    the Hessian."""
+    import time
+    from ase.io import read, write as ase_write
+    job_dir = Path(job_dir)
+    ts_name = f"{label}_ts.xyz"
+    ase_write(str(job_dir / ts_name), ts_atoms, format="xyz")
+    inp = job_dir / f"{label}.inp"
+    out = job_dir / f"{label}.out"
+    write_irc_input(inp, ts_name, charge, mult, config,
+                    hess_filename=hess_filename)
+    t0 = time.monotonic()
+    rc = run_orca(inp, config, out)
+    elapsed = round(time.monotonic() - t0, 2)
+    text = out.read_text() if out.exists() else ""
+    converged = rc == 0 and _converged(
+        text, ("THE IRC HAS CONVERGED", "ORCA TERMINATED NORMALLY"))
+
+    def _match(endpoint_file):
+        p = job_dir / endpoint_file
+        if not p.exists():
+            return None, None
+        a = read(str(p))
+        bs = bond_set(a)
+        r_match = bs == bond_set(reactant)
+        p_match = bs == bond_set(product)
+        which = ("reactant" if r_match and not p_match else
+                 "product" if p_match and not r_match else
+                 "both" if r_match and p_match else "other")
+        return which, a
+
+    fwd_which, _ = _match(f"{label}_IRC_F.xyz")
+    bwd_which, _ = _match(f"{label}_IRC_B.xyz")
+    ends = {fwd_which, bwd_which}
+    connects = ends == {"reactant", "product"}
+
+    return {
+        "converged":                  bool(converged),
+        "forward_end":                fwd_which,
+        "backward_end":               bwd_which,
+        "connects_reactant_product":  connects,
+        "wall_time_s":                elapsed,
+        "returncode":                 rc,
     }
 
 

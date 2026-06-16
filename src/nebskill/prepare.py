@@ -361,9 +361,44 @@ def prepare_optts(reaction_id: int, output_dir: str | None = None, *,
     ))
 
 
+def prepare_irc(reaction_id: int, output_dir: str | None = None, *,
+                backend: str | None = None, tag: str | None = None) -> JobPlan:
+    """Plan an IRC from an attempt's optimized TS. Needs the OptTS outputs
+    (ts_opt.xyz + ts_opt.hess) and the endpoints to compare connectivity."""
+    backend_eff = effective_backend(backend)
+    root = reaction_root(reaction_id, output_dir)
+    out_dir = resolve_out_dir(reaction_id, output_dir, tag)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    remote_subdir = (root.name if out_dir == root
+                     else f"{root.name}/{out_dir.name}")
+
+    upload = ["endpoints.json", "relaxed_endpoints.json", "ts_opt.xyz"]
+    if (out_dir / "ts_opt.hess").exists():
+        upload.append("ts_opt.hess")     # reuse OptTS Hessian, skip recompute
+    cfg_name = _stage_local_cfg(out_dir)
+    if cfg_name:
+        upload.append(cfg_name)
+
+    command = ["nebskill-irc", "--reaction-id", str(reaction_id),
+               "--output-dir", "."]
+    if backend:
+        command += ["--backend", backend]
+
+    resources, pre_launch = _resources_and_prelaunch(backend_eff, "irc")
+    return _finish(JobPlan(
+        step="irc", reaction_id=reaction_id, backend=backend_eff,
+        local_dir=out_dir, remote_subdir=remote_subdir,
+        command=command, environment=dict(WORKER_ENV), upload=upload,
+        download=[f"irc_{backend_eff}.json", "irc_IRC_Full_trj.xyz"],
+        progress_file=None, resources=resources, pre_launch=pre_launch,
+        inputs_ready=True,
+    ))
+
+
 PREPARERS = {
     "relax": prepare_relax,
     "neb": prepare_neb,
     "frequencies": prepare_frequencies,
     "optts": prepare_optts,
+    "irc": prepare_irc,
 }

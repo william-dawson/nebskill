@@ -71,7 +71,31 @@ saddle. Interpretation after refinement:
 
 Run OptTS whenever the raw NEB-image frequency is borderline, or before claiming
 any lower barrier in `/nebskill:finding-lower-barriers`. (It confirms the saddle;
-confirming *which endpoints it connects* still needs an IRC.)
+confirming *which endpoints it connects* needs the IRC below.)
+
+## Confirming connectivity — `nebskill-irc` (ORCA)
+
+A refined TS is a genuine saddle — but *for what reaction*? A saddle found by NEB
+can connect a different pair of minima than the dataset's stated reactant and
+product (e.g. ours for r04 breaks a bond that is intact at both endpoints — a hint
+it may roll downhill elsewhere). `nebskill-irc` settles it: it rolls downhill from
+the optimized TS in both directions and checks the two minima it reaches.
+
+```bash
+nebskill-irc --reaction-id INT --backend orca
+```
+
+Runs after `nebskill-optts` (needs `ts_opt.xyz`; reuses `ts_opt.hess` to skip
+recomputing the Hessian). It compares each IRC endpoint's bond connectivity to the
+relaxed reactant and product and writes `irc_orca.json`:
+- `connects_reactant_product: true` → the TS is the saddle for **this** reaction;
+  a lower barrier here is a real flaw in the dataset entry. Exit 0.
+- `false` → the two ends are some other pair; the TS (and its barrier) belongs to
+  a **different** reaction, so a lower barrier here does **not** count. Exit 6.
+
+This is the final gate: only a TS that is (a) a clean first-order saddle (OptTS)
+**and** (b) IRC-confirmed to connect the stated endpoints can support a
+lower-barrier claim.
 
 ## Using it in a barrier claim
 
