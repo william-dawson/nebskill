@@ -234,8 +234,8 @@ def main():
     orca_grp.add_argument("--max-move", type=float, default=None,
                           help="ORCA Maxmove, Bohr/step (lower stabilizes)")
     orca_grp.add_argument("--interpolation", default=None,
-                          choices=["IDPP", "linear", "XTB0", "XTB1", "XTB2"],
-                          help="Initial-path interpolation")
+                          help="ORCA NEB initial-path interpolation "
+                               "(default IDPP; linear also available)")
     orca_grp.add_argument("--sidpp", action="store_true", default=False,
                           help="Sequential IDPP for hard geometries")
     orca_grp.add_argument("--spring-constant2", type=float, default=None,

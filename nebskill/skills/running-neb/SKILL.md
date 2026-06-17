@@ -52,15 +52,14 @@ map onto ORCA's `%neb` block:
 nebskill-neb --reaction-id INT \
     [--neb-type NEB-CI|NEB-TS|LOOSE-NEB-TS|TIGHT-NEB-TS|FAST-NEB-TS|ZOOM-NEB-CI] \
     [--opt-method LBFGS|VPO|FIRE|BFGS] [--max-iter N] [--max-move 0.05] \
-    [--interpolation IDPP|XTB0|XTB1|XTB2] [--sidpp] \
+    [--interpolation IDPP|linear] [--sidpp] \
     [--spring-constant2 K2] [--no-energy-weighted] [--free-end] \
     [--ts-guess ts.xyz] [--restart-path prev.allxyz]
 ```
 
 - **Converge a tough case**: a looser/tighter variant (`--neb-type LOOSE-NEB-TS`),
   a different optimizer (`--opt-method VPO|FIRE`), more iterations (`--max-iter`),
-  a smaller step (`--max-move`), or a better starting path (`--sidpp`, XTB
-  interpolation).
+  a smaller step (`--max-move`), or a better starting path (`--sidpp`).
 - **Explore a new path**: more images, soften/stiffen springs
   (`--spring-constant`/`--spring-constant2`/`--no-energy-weighted`), seed a
   hypothesized saddle (`--ts-guess`), or warm-start from a prior MEP

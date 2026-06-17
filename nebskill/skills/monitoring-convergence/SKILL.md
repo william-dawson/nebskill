@@ -111,7 +111,7 @@ NEB controls and don't apply. ORCA's analogs (same reasoning, different keywords
 | Relax convergence target | `--neb-type LOOSE-NEB-TS` | a near-converged band that won't hit the tight default |
 | Converge the saddle, not the whole band | `--neb-type NEB-TS` | the barrier has stabilized but the full band won't reach tolerance (tails keep oscillating); NEB-TS hands the climbing image to a TS optimizer instead of requiring every image to converge |
 | More iterations | `--max-iter N` | still descending at the cap |
-| Better starting path | `--sidpp` or `--interpolation XTB1` | phase-1-style kinking from a poor initial guess |
+| Better starting path | `--sidpp` (sequential IDPP) | phase-1-style kinking from a poor initial guess |
 | Re-relax endpoints | `nebskill-relax --fmax 0.005` then re-run | high endpoint force |
 
 (Structural levers `--n-images` and `--spring-constant` apply to ORCA unchanged.)

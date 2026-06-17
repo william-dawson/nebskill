@@ -54,8 +54,7 @@ def main():
                        choices=["LBFGS", "VPO", "FIRE", "BFGS"])
     p_neb.add_argument("--max-iter", type=int, default=None)
     p_neb.add_argument("--max-move", type=float, default=None)
-    p_neb.add_argument("--interpolation", default=None,
-                       choices=["IDPP", "linear", "XTB0", "XTB1", "XTB2"])
+    p_neb.add_argument("--interpolation", default=None)
     p_neb.add_argument("--sidpp", action="store_true", default=False)
     p_neb.add_argument("--spring-constant2", type=float, default=None)
     p_neb.add_argument("--no-energy-weighted", action="store_true", default=False)

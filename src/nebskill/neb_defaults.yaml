@@ -62,7 +62,7 @@ neb:
     opt_method: LBFGS         # LBFGS | VPO | FIRE | BFGS  (Opt_Method)
     max_iter: 500             # MaxIter
     max_move: null            # Maxmove, Bohr/step; null = ORCA default (0.1)
-    interpolation: IDPP       # IDPP | linear | XTB0 | XTB1 | XTB2  (Interpolation)
+    interpolation: IDPP       # IDPP | linear  (ORCA NEB Interpolation)
     sidpp: false              # Sequential IDPP for hard geometries (SIDPP)
     spring_constant2: null    # SpringConst2 (upper, energy-weighted); null = default
     energy_weighted: true     # Energy_Weighted (variable springs)
