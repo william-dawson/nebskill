@@ -97,6 +97,49 @@ This is the final gate: only a TS that is (a) a clean first-order saddle (OptTS)
 **and** (b) IRC-confirmed to connect the stated endpoints can support a
 lower-barrier claim.
 
+## Lowest TS conformer — `nebskill-goat` (ORCA)
+
+A located TS is *a* saddle for the reaction, but for a floppy molecule the
+periphery (OH/methyl/chain rotations) has several conformations and the one the
+path happened through may not be the lowest. Neither the dataset's NEB nor the
+upstream GSM did a TS conformer search, so this is a genuinely new refinement:
+ORCA **GOAT** searches the conformers, and any that sits below the input TS is a
+candidate for a lower barrier *at the same mechanism*.
+
+**You choose the constraints — this is the judgement, not a formula.** GOAT must
+hold the reaction coordinate fixed or it drifts off the saddle into unrelated
+conformers. *Which* bonds/angles define this TS is chemistry you decide by
+**looking at the optimized TS geometry and its imaginary-mode displacements**
+(from the OptTS Freq output — the large-amplitude atoms are the reactive core).
+Pass them explicitly:
+
+```bash
+nebskill-goat --reaction-id INT --backend orca \
+    --constrain-bond I J  [--constrain-bond K L ...] \
+    [--constrain-angle I J K ...]
+```
+
+Run with no constraints and it refuses, printing the reactant→product
+bond-change diff as an **advisory hint only** — that hint is blind to partial
+bonds, to angles that are part of the mechanism, and to the actual imaginary
+mode, so treat it as a starting point and decide for yourself. A poor choice is
+not fatal: every candidate is filtered by the OptTS + IRC gates below.
+
+GOAT runs at the DFT level and writes `goat_orca.json` (conformer energies
+relative to the input TS, count below it) + `goat.globalminimum.xyz`. Exit 7 if a
+lower conformer is found. **GOAT conformers are constrained minima, not saddles**
+— so a candidate only counts after the full gauntlet:
+
+1. `nebskill-optts` on the candidate → confirm it refines to a clean first-order
+   saddle (and see whether it stays lower once unconstrained);
+2. `nebskill-irc` → confirm it still connects the same reactant and product;
+3. re-evaluate at a larger basis (e.g. def2-TZVP) — a conformer win at 6-31G(d)
+   is geometry-real but basis-limited, so the barrier claim needs the better
+   level (see `notes/grambow_paper.md`).
+
+Most worthwhile on the floppy molecules (≥2 rotatable bonds at the TS); on a
+rigid TS there is nothing to find.
+
 ## Using it in a barrier claim
 
 In `/nebskill:finding-lower-barriers`, a lower barrier only counts if its TS is

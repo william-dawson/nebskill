@@ -20,8 +20,8 @@ import argparse
 import json
 import sys
 
-from nebskill.prepare import (prepare_frequencies, prepare_irc, prepare_neb,
-                              prepare_optts, prepare_relax)
+from nebskill.prepare import (prepare_frequencies, prepare_goat, prepare_irc,
+                              prepare_neb, prepare_optts, prepare_relax)
 
 
 def main():
@@ -75,6 +75,13 @@ def main():
     p_irc = sub.add_parser("irc", parents=[common])
     p_irc.add_argument("--tag", default=None)
 
+    p_goat = sub.add_parser("goat", parents=[common])
+    p_goat.add_argument("--tag", default=None)
+    p_goat.add_argument("--constrain-bond", nargs=2, type=int, action="append",
+                        metavar=("I", "J"), default=[])
+    p_goat.add_argument("--constrain-angle", nargs=3, type=int, action="append",
+                        metavar=("I", "J", "K"), default=[])
+
     args = parser.parse_args()
 
     if args.step == "relax":
@@ -105,10 +112,16 @@ def main():
         plan = prepare_optts(
             args.reaction_id, args.output_dir, backend=args.backend,
             imag_cutoff=args.imag_cutoff, tag=args.tag)
-    else:
+    elif args.step == "irc":
         plan = prepare_irc(
             args.reaction_id, args.output_dir, backend=args.backend,
             tag=args.tag)
+    else:
+        plan = prepare_goat(
+            args.reaction_id, args.output_dir, backend=args.backend,
+            tag=args.tag,
+            constrain_bonds=[tuple(b) for b in args.constrain_bond],
+            constrain_angles=[tuple(a) for a in args.constrain_angle])
 
     print(json.dumps(plan.to_dict(), indent=2))
     if not plan.inputs_ready:

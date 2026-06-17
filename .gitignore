@@ -12,3 +12,4 @@ screen.png
 .DS_Store
 config.json
 remotemanager.log
+*.pdf

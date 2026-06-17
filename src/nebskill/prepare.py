@@ -395,10 +395,55 @@ def prepare_irc(reaction_id: int, output_dir: str | None = None, *,
     ))
 
 
+def prepare_goat(reaction_id: int, output_dir: str | None = None, *,
+                 backend: str | None = None, tag: str | None = None,
+                 constrain_bonds: list | None = None,
+                 constrain_angles: list | None = None) -> JobPlan:
+    """Plan a GOAT-TS conformer search on an attempt's optimized TS. Needs the
+    OptTS output (ts_opt.xyz) and the endpoints. The reaction-coordinate
+    constraints are NOT derived here — the agent chooses them (by inspecting the
+    TS geometry and its imaginary mode) and passes them through; they are
+    forwarded into the worker command."""
+    backend_eff = effective_backend(backend)
+    root = reaction_root(reaction_id, output_dir)
+    out_dir = resolve_out_dir(reaction_id, output_dir, tag)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    remote_subdir = (root.name if out_dir == root
+                     else f"{root.name}/{out_dir.name}")
+
+    upload = ["endpoints.json", "relaxed_endpoints.json", "ts_opt.xyz"]
+    if (out_dir / "ts_opt_orca.json").exists():
+        upload.append("ts_opt_orca.json")     # input TS energy for the rel. scale
+    cfg_name = _stage_local_cfg(out_dir)
+    if cfg_name:
+        upload.append(cfg_name)
+
+    command = ["nebskill-goat", "--reaction-id", str(reaction_id),
+               "--output-dir", "."]
+    if backend:
+        command += ["--backend", backend]
+    for (i, j) in (constrain_bonds or []):
+        command += ["--constrain-bond", str(i), str(j)]
+    for (i, j, k) in (constrain_angles or []):
+        command += ["--constrain-angle", str(i), str(j), str(k)]
+
+    resources, pre_launch = _resources_and_prelaunch(backend_eff, "goat")
+    return _finish(JobPlan(
+        step="goat", reaction_id=reaction_id, backend=backend_eff,
+        local_dir=out_dir, remote_subdir=remote_subdir,
+        command=command, environment=dict(WORKER_ENV), upload=upload,
+        download=[f"goat_{backend_eff}.json", "goat.globalminimum.xyz",
+                  "goat.finalensemble.xyz"],
+        progress_file=None, resources=resources, pre_launch=pre_launch,
+        inputs_ready=True,
+    ))
+
+
 PREPARERS = {
     "relax": prepare_relax,
     "neb": prepare_neb,
     "frequencies": prepare_frequencies,
     "optts": prepare_optts,
     "irc": prepare_irc,
+    "goat": prepare_goat,
 }

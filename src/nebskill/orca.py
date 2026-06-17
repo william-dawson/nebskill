@@ -52,6 +52,21 @@ def bond_set(atoms: Atoms, scale: float = 1.3) -> set:
     return bonds
 
 
+def changed_bonds(reactant: Atoms, product: Atoms) -> list[tuple]:
+    """ADVISORY HINT ONLY — bonds that form or break between reactant and product
+    (symmetric difference of the two connectivity graphs).
+
+    This is a *starting hint* for which bonds might define the reaction coordinate
+    of a TS conformer search, NOT an authoritative constraint set. It is blind to
+    partial bonds, to angles/dihedrals that are part of the mechanism, and to the
+    actual imaginary-mode displacements — choosing the real constraints is chemical
+    judgment for the agent, informed by the geometry and the OptTS imaginary mode.
+    Distance-based perception is also least reliable at a TS (half-formed bonds).
+    Requires shared atom ordering, which holds within one reaction's R/P."""
+    diff = bond_set(reactant) ^ bond_set(product)
+    return sorted(tuple(sorted(p)) for p in diff)
+
+
 def _orca_cfg(config: dict) -> dict:
     return config.get("calculator", {}).get("orca", {}) or {}
 
@@ -146,6 +161,35 @@ def write_optts_input(path: Path, atoms: Atoms, charge: int, mult: int,
         _pal_block(config),
         "%geom Calc_Hess true Recalc_Hess 5 end",
         _xyz_block(atoms, charge, mult),
+        "",
+    ]))
+
+
+def write_goat_ts_input(path: Path, ts_atoms: Atoms, charge: int, mult: int,
+                        config: dict, *, constrain_bonds: list,
+                        constrain_angles: list | None = None) -> None:
+    """GOAT conformer search for a transition state, at the configured DFT level.
+
+    The reaction-coordinate bonds (and optionally angles) are held fixed via a
+    %geom Constraints block so GOAT explores only the *peripheral* conformations
+    and stays on THIS reaction. The produced conformers are constrained minima,
+    NOT optimized transition states — each promising one must be re-optimized
+    with OptTS (then Freq + IRC) afterward.
+
+    Runs at the same level of theory as the rest of the pipeline (no semiempirical
+    sampling): for these small molecules a DFT GOAT is comparable in cost to a
+    NEB and gives a trustworthy ranking directly."""
+    oc = _orca_cfg(config)
+    extra = oc.get("simple_input") or ""
+    simple = f"! {level_of_theory(config)} GOAT {extra}".rstrip()
+    cons = [f"  {{ B {i} {j} C }}" for (i, j) in constrain_bonds]
+    cons += [f"  {{ A {i} {j} {k} C }}" for (i, j, k) in (constrain_angles or [])]
+    block = ["%geom", " Constraints", *cons, " end", "end"] if cons else []
+    path.write_text("\n".join([
+        simple,
+        _pal_block(config),
+        *block,
+        _xyz_block(ts_atoms, charge, mult),
         "",
     ]))
 
@@ -540,6 +584,86 @@ def optimize_ts(atoms: Atoms, charge: int, mult: int, config: dict,
         "verdict":               verdict,
         "wall_time_s":           elapsed,
         "returncode":            rc,
+    }
+
+
+def run_goat_ts(ts_atoms: Atoms, charge: int, mult: int, config: dict,
+                job_dir: Path, *, constrain_bonds: list,
+                constrain_angles: list | None = None,
+                ts_energy_ev: float | None = None, label: str = "goat") -> dict:
+    """Search the conformer space of a transition state (GOAT), holding the
+    supplied reaction-coordinate bonds/angles fixed so the search stays on this
+    reaction.
+
+    The constraints are NOT derived here — choosing what defines the TS (which
+    partial bonds, which approach angles) is chemical judgment for the agent,
+    informed by the geometry and the imaginary-mode displacements. `changed_bonds`
+    is available only as an advisory hint. This function is the deterministic
+    plumbing: write valid input with the given constraints, run, parse the
+    ensemble, and flag conformers below the input TS.
+
+    Returns the conformer ensemble with energies relative to the input TS, and
+    flags any conformer below it (a candidate lower TS conformer — which must
+    then be confirmed with OptTS + Freq + IRC; GOAT yields constrained minima,
+    not saddles). `ts_energy_ev` is the input TS energy for the relative scale;
+    if omitted it is taken from the ensemble's first frame.
+
+    Output-parsing seam (validate on first real run): conformer energies are read
+    from the GOAT ensemble file's comment lines, falling back to the .out.
+    """
+    import time
+    from ase.io import read
+    job_dir = Path(job_dir)
+    inp = job_dir / f"{label}.inp"
+    out = job_dir / f"{label}.out"
+    write_goat_ts_input(inp, ts_atoms, charge, mult, config,
+                        constrain_bonds=constrain_bonds,
+                        constrain_angles=constrain_angles)
+    t0 = time.monotonic()
+    rc = run_orca(inp, config, out)
+    elapsed = round(time.monotonic() - t0, 2)
+    text = out.read_text() if out.exists() else ""
+    converged = rc == 0 and "ORCA TERMINATED NORMALLY" in text
+
+    # GOAT writes the ranked ensemble to <base>.finalensemble.xyz and the lowest
+    # to <base>.globalminimum.xyz. Read per-conformer energies from the ensemble.
+    ens = job_dir / f"{label}.finalensemble.xyz"
+    conformers = []
+    if ens.exists():
+        frames = read(str(ens), index=":")
+        eh = _energies_from_trj(ens)                # Hartree, one per frame, or None
+        for idx, a in enumerate(frames):
+            e_ev = (eh[idx] * Hartree) if eh else None
+            conformers.append({"index": idx, "energy_ev": e_ev,
+                               "n_atoms": len(a)})
+
+    # Relative-to-input-TS energies and the lowest conformer.
+    e0 = ts_energy_ev
+    if e0 is None and conformers and conformers[0]["energy_ev"] is not None:
+        e0 = conformers[0]["energy_ev"]
+    n_below = lowest_drop = None
+    if e0 is not None:
+        drops = [e0 - c["energy_ev"] for c in conformers
+                 if c["energy_ev"] is not None]
+        if drops:
+            n_below = sum(1 for d in drops if d > 0.0)
+            lowest_drop = round(max(drops), 4)      # how far below input TS (eV)
+            for c in conformers:
+                if c["energy_ev"] is not None:
+                    c["below_input_ev"] = round(e0 - c["energy_ev"], 4)
+
+    return {
+        "converged":          bool(converged),
+        "constrained_bonds":  list(constrain_bonds),
+        "constrained_angles": list(constrain_angles or []),
+        "n_conformers":       len(conformers),
+        "conformers":         conformers,
+        "ts_energy_ev":       e0,
+        "n_below_input_ts":   n_below,
+        "lowest_below_ev":    lowest_drop,   # >0 means a lower conformer was found
+        "global_minimum_xyz": f"{label}.globalminimum.xyz",
+        "wall_time_s":        elapsed,
+        "returncode":         rc,
     }
 
 
