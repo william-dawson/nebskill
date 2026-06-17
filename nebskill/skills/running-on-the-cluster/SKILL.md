@@ -61,7 +61,7 @@ Map the plan onto the agent's `submit_job` JobSpec:
 - `directory:` the remote job directory
 - `environment:` the plan's `environment` (so `NEBSKILL_WORKER=1` etc. are set)
 - `pre_launch:` the plan's `pre_launch` — for the **orca** backend this carries
-  the `module load` / `export` lines ORCA needs (binary's MPI libs, XTBPATH).
+  the `module load` / `export` lines ORCA needs (its MPI/runtime libraries).
   Empty for mace. These must run before the executable, which is exactly
   what JobSpec.pre_launch is for.
 - `resources:` honor the plan's `cpus`/`gpus`. For **orca**, the plan also gives

@@ -256,7 +256,7 @@ def run_orca(input_file: Path, config: dict, out_file: Path) -> int:
 
     ORCA requires its FULL path for MPI parallel runs (it re-launches itself),
     so we call the configured `command` directly. The cluster modules it needs
-    (intel/openmpi, XTBPATH, ...) are loaded by the job's pre_launch before this
+    (intel/openmpi, ...) are loaded by the job's pre_launch before this
     process starts — see prepare.py / the orca config `pre_launch`.
     """
     import shutil

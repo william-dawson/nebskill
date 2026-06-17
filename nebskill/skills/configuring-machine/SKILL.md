@@ -71,7 +71,7 @@ the rest of setup:
     - the full path to the `orca` binary (it must be the full path; ORCA needs it
       for MPI),
     - the `module load` / `export` lines ORCA needs (e.g. `module load intel`,
-      `module load openmpi`, `export XTBPATH=…`),
+      `module load openmpi`, and any environment exports from their jobscript),
     - the MPI rank count (`--ntasks-per-node`, → ORCA `%pal nprocs`) and memory
       (`--mem`, → per-rank `%maxcore`).
   These go into `neb_local.yaml`'s `calculator.orca` block in step 6. Account and
@@ -223,7 +223,6 @@ calculator:
       module load intel
       module unload intelmpi -f
       module load openmpi
-      export XTBPATH=/data/hp260089/orca_6_1_1_linux_x86-64_shared_openmpi418_avx2
 ```
 `nebskill-plan` emits `pre_launch` and the matching `--ntasks`/`--mem`/`%maxcore`
 into every ORCA job; the HPC agent adds account/partition on top.
