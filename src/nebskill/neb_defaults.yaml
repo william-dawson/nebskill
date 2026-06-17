@@ -40,7 +40,10 @@ relaxation:
 neb:
   n_images: auto              # auto = max(n_images_min, round(path_length_Å / images_per_angstrom))
   images_per_angstrom: 1.0
-  n_images_min: 10            # paper uses 10
+  n_images_min: 15            # calibrated floor: the paper's 10 (and our early 9)
+                              # under-resolve some ring rearrangements at our ORCA
+                              # NEB-CI level — 15 recovered the dataset barrier
+                              # exactly on every such case (r11/r13/r42/r47/r52/r59)
   method: improvedtangent     # improvedtangent | string | spline | eb
   interpolation: idpp         # idpp | linear
   spring_constant: 0.1        # eV/Å — paper value
