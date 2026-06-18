@@ -4,88 +4,22 @@ A Claude Code plugin for running Nudged Elastic Band (NEB) calculations on
 organic molecules using the Transition1x dataset.
 
 Energetics are **native ORCA** jobs (its own Opt / NEB-CI / NEB-TS / OptTS /
-Freq / IRC / GOAT) at **ωB97X/6-31G(d)** — the exact method that generated
-Transition1x, so the pipeline reproduces or improves on the published barriers
-at the dataset's own level of theory, with ORCA's optimizer and analytic
-frequencies. Needs an ORCA install on the cluster.
+Freq / IRC / GOAT) at **ωB97X/6-31G(d)**. Needs an ORCA install on the cluster.
 
-## Background: the data and how it was made
+## Background
 
-nebskill works against **Transition1x**, which sits on top of an earlier dataset
-from **Grambow et al.** Knowing exactly how each was generated is what makes a
-reproduction or a "the published barrier isn't the lowest" claim meaningful — so
-the provenance, and where our pipeline deliberately differs, is worth stating.
-Full method write-ups are in [`notes/`](notes/).
+nebskill works against **Transition1x** (Schreiner et al., Sci Data 2022), which
+is built on the reaction set from **Grambow et al.** (Sci Data 2020). Grambow
+generated the reactions and their transition states with the Growing String
+Method; Transition1x re-ran them with NEB to sample configurations along the
+reaction paths for training reactive ML potentials.
 
-### Grambow et al. (Sci Data 2020) — the source reactions
-
-*"Reactants, products, and transition states of elementary chemical reactions
-based on quantum chemistry."* DOI 10.1038/s41597-020-0460-4.
-
-- **Reactants** from **GDB-7**: all ~770 molecules with ≤6 heavy atoms plus a
-  random ~430 with 7 heavy atoms (~1,200), elements **C, N, O (+H)**, gas-phase,
-  spin-restricted singlet. Reactant conformers were searched (RDKit/ETKDG → MMFF94
-  → DFT) and the lowest kept.
-- **Transition states** found with the **single-ended Growing String Method**
-  (GSM) in delocalized internal coordinates: given a reactant and a set of *driving
-  coordinates* (≤2 bonds broken, ≤2 formed, ≤3 changed), GSM grows a string and
-  *discovers the product*, then runs an **exact saddle optimization**.
-- **Level of theory:** explored at B97-D3/def2-mSVP, then refined at
-  **ωB97X-D3/def2-TZVP** (Q-Chem) → **11,961** reactions. Activation energies are
-  ZPE-corrected.
-- **TS verification (not a full IRC):** each TS kept only if it had exactly one
-  imaginary mode, sat within 3 kcal/mol of the GSM path peak, had that imaginary
-  mode's displacements **aligned with the bonds that change**, and an imaginary
-  frequency > 100 cm⁻¹. A strong *mode-direction* connectivity proxy, but it
-  checks where the mode points, not where it actually rolls to.
-- **No TS conformer search** — one TS pose per reaction.
-
-### Transition1x (Schreiner et al., Sci Data 2022) — the dataset we use
-
-*"Transition1x — a dataset for building generalizable reactive machine learning
-potentials."* DOI 10.1038/s41597-022-01870-w.
-
-Built to train reactive ML potentials, it re-ran Grambow's 11,961 reactions with
-**DFT-NEB** and saved every intermediate image (~9.6M configurations on and around
-the paths) — so it deliberately samples transition-state regions, not just minima.
-
-- **Level of theory:** **ωB97X/6-31G(d)** in **ORCA 5.0.2** (driven by ASE) —
-  chosen for compatibility with ANI1x, **not** for accuracy. Note it **dropped the
-  D3 dispersion and the large basis** that Grambow used.
-- **NEB settings:** **10 images**, spring constant **k = 0.1 eV/Å²**, ASE **BFGS**
-  (α = 70, max step 0.03 Å) for everything; **IDPP** initial path built in **two
-  segments through the GSM transition state**; plain NEB to Fmax < 0.5 eV/Å then
-  **CI-NEB to Fmax < 0.05 eV/Å**; reaction discarded if not converged in 500
-  iterations. **10,073** reactions survived.
-- **The stored transition state is the highest-energy CI-NEB image** — *the TS was
-  never refined to a stationary point* (the paper says so explicitly; the goal was
-  configurations near the path, not accurate saddles).
-- **No charge/spin stored** (neutral CHNO; nebskill infers spin from electron
-  parity). **No TS conformer search.**
-
-### What nebskill does the same, and what it does differently
-
-We **match Transition1x's level of theory** (ωB97X/6-31G(d), native ORCA), so our
-barriers are directly comparable to the published ones — reproduction is
-apples-to-apples, not confounded by a different functional or basis. Where we
-differ, by design:
-
-- **NEB image count.** Our default floor is **15 images**, not 10. The paper's 10
-  under-resolves some ring-rearrangement paths at this level of theory, settling on
-  a higher saddle; 15 resolves them.
-- **Initial path.** Our baseline interpolates **reactant→product directly** (cold
-  IDPP), whereas Transition1x seeded its band **through the GSM TS**. A cold path
-  is a *less informed* guess and can settle on a worse saddle — so `--ts-guess`
-  (seed through the stored TS) is the faithful analog when that happens.
-- **TS refinement and verification — beyond either source.** nebskill adds rungs
-  neither dataset has: **OptTS** (refine the NEB image to a true first-order
-  saddle), **full IRC** (confirm the TS connects the *same* reactant and product —
-  stronger than Grambow's mode-direction check), and **GOAT** TS-conformer search
-  (find a lower conformer of the same saddle — a step both pipelines skipped).
-- **Basis caveat.** 6-31G(d) is a deliberately small basis. A barrier found here
-  is comparable to the dataset, but a *physically* lower TS worth trusting should
-  be re-checked at a larger basis (e.g. def2-TZVP, Grambow's level) before the
-  claim is made.
+nebskill uses the **same data and the same level of theory** as Transition1x — so
+our barriers are directly comparable to the published ones — but takes a
+**different approach** to the calculations (native ORCA NEB, plus transition-state
+refinement and verification the original work didn't do). Same ground truth, our
+own method: that's what lets us reproduce the published barriers, or look for ones
+the original approach missed.
 
 ## Install
 
