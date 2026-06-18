@@ -11,8 +11,8 @@ license: MIT
 compatibility: >
   Requires uv (https://docs.astral.sh/uv/getting-started/installation/).
   All Python dependencies install automatically via uv. Energetics are native
-  ORCA DFT, so an ORCA install on the cluster is required; ORCA runs on CPU.
-  Internet access required for the dataset download on first use.
+  ORCA DFT, so an ORCA install on the cluster is required; ORCA runs on CPU. The
+  reaction data ships as a small bundled cache — no dataset download needed.
 metadata:
   author: knomura
   version: "0.1.0"
@@ -49,18 +49,13 @@ If the command is not found, the package has not been installed. Tell the user:
 > "The nebskill package isn't installed yet. Run `/nebskill:configuring-machine` first."
 Stop and do not proceed until setup is complete.
 
-### Is the dataset present?
+### Reaction data
 
-Check for the Transition1x dataset:
-```bash
-ls -lh data/Transition1x.h5
-```
-
-If missing, offer to download it now (~6.2 GB, resumes if interrupted):
-```bash
-nebskill-download
-```
-Warn the user this will take a while on first run and show progress.
+A small cache of ~1000 reactions (geometries + reference barriers) ships with the
+package — no dataset download. `nebskill-load --list` shows the cached ids;
+`nebskill-load --reaction-id N` writes one reaction's endpoints. (The full 6.2 GB
+Transition1x dataset is only needed to *rebuild* the cache, via
+`nebskill-build-cache`.)
 
 ---
 
@@ -106,8 +101,9 @@ as a CLI flag to the relevant script. Do not modify the yaml files.
 
 Execute each step in order by running its CLI command. Read the step's skill
 for details, then report a brief summary before moving to the next. The relax
-and neb commands automatically submit a job via RemoteManager when
-`nebskill_remote.yaml` is present — no extra handling needed.
+and neb commands are compute jobs. For cluster runs, plan them with
+`nebskill-plan` and dispatch them through the companion HPC agent plugin
+(`/nebskill:running-on-the-cluster`).
 
 1. **Load reaction** — run `nebskill-load --reaction-id INT`
    - See `/nebskill:loading-reaction` for output schema

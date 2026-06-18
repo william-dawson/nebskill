@@ -14,7 +14,7 @@
         "url": "git@github.com:william-dawson/nebskill.git",
         "path": "nebskill"
       },
-      "version": "0.31.0",
+      "version": "0.32.0",
       "description": "Nudged Elastic Band reaction-barrier calculations on organic molecules using the Transition1x dataset, powered by native ORCA (Opt / NEB-CI / NEB-TS / OptTS / Freq / IRC / GOAT at wB97X/6-31G(d)). Requires uv; Python dependencies installed automatically. Cluster jobs run via a companion HPC agent plugin (Rikyu/Hokusai).",
       "author": {
         "name": "william-dawson"

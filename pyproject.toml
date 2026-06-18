@@ -1,6 +1,6 @@
 [project]
 name = "nebskill"
-version = "0.31.0"
+version = "0.32.0"
 description = "Nudged Elastic Band reaction-barrier calculations with native ORCA on the Transition1x dataset"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -16,8 +16,9 @@ dependencies = [
 
 [project.scripts]
 nebskill-download = "nebskill.download:main"
-nebskill-load     = "nebskill.load:main"
-nebskill-sample   = "nebskill.sample:main"
+nebskill-load        = "nebskill.load:main"
+nebskill-sample      = "nebskill.sample:main"
+nebskill-build-cache = "nebskill.build_cache:main"
 nebskill-grade    = "nebskill.grade:main"
 nebskill-relax    = "nebskill.relax:main"
 nebskill-neb      = "nebskill.neb:main"

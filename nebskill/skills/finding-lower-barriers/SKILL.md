@@ -31,14 +31,8 @@ null result — record it and move to the next.
 ## 1 — Triage (cheap, no DFT)
 
 Every barrier here is a DFT (ORCA) calculation — there is no cheap force engine to
-scout with. So triage from signals that cost nothing to read off the dataset:
-
-**Stored-profile red flags.** `load` saves `dft_traj_energies` in endpoints.json.
-Inspect it for:
-- multiple peaks (the path may cross a higher saddle when a lower one exists)
-- a kinked / discontinuous profile
-- a TS that sits near a trajectory edge or is poorly centered
-These hint at an under-resolved path where a lower saddle was skipped.
+scout with. So triage from signals that cost nothing to read off the cached
+reaction (reactant / product / dataset-TS geometries + reference barrier):
 
 **Structural priors** — where fixed-parameter NEB fails most:
 - large reactant→product RMSD (10 images cut corners on a long path)

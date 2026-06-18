@@ -15,11 +15,15 @@ land on the dataset's published value, demonstrating the full path.
 ## Before you start
 
 Setup must be done: `/nebskill:configuring-machine` (ORCA recipe captured, HPC
-agent connected, `neb_local.yaml` written). If `nebskill-load --help` doesn't run
+agent connected, `neb_local.yaml` written). If `nebskill-load --list` doesn't run
 or there is no `neb_local.yaml`, do setup first.
 
-Pick a small, well-behaved reaction so the demo is quick. **Reaction 0** is a fine
-default; let the user name a different index if they like.
+Pick a reaction from the bundled cache:
+```bash
+nebskill-load --list
+```
+Use one of the listed ids (the first one is fine). Call it `ID` below. The
+reaction data is cached locally — there is no dataset download.
 
 ## The walkthrough
 
@@ -30,25 +34,25 @@ dispatch via `/nebskill:running-on-the-cluster`.
 
 1. **Load** the reaction and read off the reference barrier:
    ```bash
-   nebskill-load --reaction-id 0
+   nebskill-load --reaction-id ID
    ```
    Note the `dft_forward_barrier_ev` in `endpoints.json` — that's the target.
 
-2. **Relax** the reactant and product (Transition1x endpoints are not minima at
-   our level, so this is mandatory):
+2. **Relax** the reactant and product (the stored endpoints are not minima at our
+   level of theory, so this is mandatory):
    ```bash
-   nebskill-relax --reaction-id 0
+   nebskill-relax --reaction-id ID
    ```
 
 3. **NEB** to find the path and barrier:
    ```bash
-   nebskill-neb --reaction-id 0
+   nebskill-neb --reaction-id ID
    ```
    On a cluster this is the long step — watch ORCA's `neb.out` while it runs.
 
 4. **Analyze** — compute the barrier and compare to the dataset:
    ```bash
-   nebskill-analyze --reaction-id 0
+   nebskill-analyze --reaction-id ID
    ```
    The computed barrier should match the reference (typically within a few meV).
    That match *is* the demo succeeding: same method, reproduced result.
@@ -57,9 +61,9 @@ dispatch via `/nebskill:running-on-the-cluster`.
    refine it to a true saddle, confirm one imaginary mode, and check it connects
    the right endpoints:
    ```bash
-   nebskill-optts        --reaction-id 0
-   nebskill-frequencies  --reaction-id 0
-   nebskill-irc          --reaction-id 0
+   nebskill-optts        --reaction-id ID
+   nebskill-frequencies  --reaction-id ID
+   nebskill-irc          --reaction-id ID
    ```
 
 ## Wrapping up
