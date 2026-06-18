@@ -40,11 +40,12 @@ barrier yourself and reach one of:
   Done; record it and how you got there.
 - **Lower** — you find a barrier meaningfully *below* the reference. Done, **but a
   lower number is worthless without an explanation.** A lower barrier only counts
-  if you can defend it: is it a genuine transition state? does it connect the
-  **same** reactant and product, or a different pair? is it a better path for the
-  *same* reaction, or actually a *different* reaction? State your conclusion (e.g.
-  "the reference is conservative — here is a lower, validated saddle for the same
-  reaction" vs "this lower saddle is a different reaction and does not count").
+  if you can defend it: is it a genuine transition state (OptTS → one imaginary
+  mode)? Does that imaginary mode point along the bonds **this** reaction changes,
+  i.e. is it the saddle for the *same* reaction rather than some other process?
+  State your conclusion (e.g. "the reference is conservative — here is a lower,
+  validated saddle for the same reaction" vs "this lower saddle's mode is a
+  different process and does not count").
 - **Higher / not matched yet** — not done. Find out *why* you fell short and
   change your approach. Keep working it.
 
@@ -53,8 +54,8 @@ barrier yourself and reach one of:
 You get only the geometries. There is no target to match. For each reaction you
 must determine the barrier **and decide for yourself when you have truly found
 it.** Be warned: *this is genuinely hard.* Without a reference, nothing tells you
-when you are done — a converged-looking number can still be the wrong saddle, a
-suboptimal path, or the wrong conformer. Stopping too early gives a wrong answer;
+when you are done — a converged-looking number can still be the wrong saddle or a
+suboptimal path. Stopping too early gives a wrong answer;
 the only way to earn confidence is to convince *yourself*, with evidence, that
 the barrier you report is the real one. Decide your own stopping criterion and
 state, per reaction, why you believe you are done. (Do **not** read
@@ -72,12 +73,29 @@ honest assessment, then move on — but only after real effort, and surface thes
 at the end as the cases that defeated the method. This should be the rare
 exception, not your escape hatch.)
 
+## Tools in scope
+
+Work with the **core barrier toolkit** and nothing fancier:
+
+- **NEB** — find the reaction path and barrier (the **NEB-CI** variant by default;
+  other NEB convergence variants are fine for a band that won't settle).
+- **OptTS** — refine the transition state to a true first-order saddle.
+- **Hessian / frequency analysis** — confirm the saddle (one imaginary mode) and,
+  for a claimed lower barrier, check that the imaginary mode points along the bonds
+  this reaction actually changes.
+
+(Plus the obvious prerequisites — loading a reaction and relaxing its endpoints.)
+
+**Stay within these.** Do **not** reach for the more exploratory tools — in
+particular **no conformer search**, and no other discovery machinery. This study
+is about reproducing barriers with the standard path-and-saddle workflow, not
+about exploring the fancy capabilities; venturing there is out of scope.
+
 ## How to do it
 
-You are not told. You have a suite of skills for NEB reaction-barrier
-calculations — find them and use your judgment about which to apply and when. When
-a calculation does not reproduce, that mismatch is the work: diagnose the cause
-and decide what to change. Do not look for a recipe here.
+You are not told *how*. Within the toolkit above, use your judgment about which to
+apply and when, and what to change when a calculation doesn't reproduce —
+diagnosing that mismatch is the work. Do not look for a recipe here.
 
 ## Recording — required (your run is graded automatically)
 
@@ -89,7 +107,7 @@ scored against the truth by `nebskill-grade`:
   {"reaction_id": 1234, "status": "matched", "barrier_ev": 3.512,
    "attempts": ["...what you tried and why..."], "explanation": ""},
   {"reaction_id": 1240, "status": "lower", "barrier_ev": 2.10,
-   "explanation": "validated saddle, IRC connects the stated R and P; ..."}
+   "explanation": "OptTS gives one imaginary mode along the breaking C-O / forming C-N bonds of this reaction; ..."}
 ]}
 ```
 
