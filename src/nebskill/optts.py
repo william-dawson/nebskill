@@ -68,7 +68,7 @@ def main():
     cfg = load_config(args.config)
     if args.backend:
         cfg["calculator"]["backend"] = args.backend
-    backend = cfg.get("calculator", {}).get("backend", "mace")
+    backend = cfg.get("calculator", {}).get("backend", "orca")
     if backend != "orca":
         print(f"ERROR: OptTS is ORCA-only (backend is {backend!r}). "
               f"Use --backend orca or set it in neb_local.yaml.", file=sys.stderr)

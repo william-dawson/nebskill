@@ -10,8 +10,8 @@ right account/partition/modules), fs_tail the progress file, then fs_download
 the outputs back into local_dir.
 
 Usage:
-  nebskill-plan relax       --reaction-id N [--backend B] [--fmax F]
-  nebskill-plan neb         --reaction-id N [--n-images ...] [--optimizer ...] ...
+  nebskill-plan relax       --reaction-id N [--fmax F]
+  nebskill-plan neb         --reaction-id N [--n-images ...] [--neb-type ...] ...
   nebskill-plan frequencies --reaction-id N [--source neb|dataset] ...
 
 See `/nebskill:running-on-the-cluster` for the full dispatch loop.
@@ -32,19 +32,13 @@ def main():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--reaction-id", type=int, required=True)
     common.add_argument("--output-dir", default=None)
-    common.add_argument("--backend", choices=["mace", "orca"], default=None)
 
     p_relax = sub.add_parser("relax", parents=[common])
     p_relax.add_argument("--fmax", type=float, default=None)
 
     p_neb = sub.add_parser("neb", parents=[common])
     p_neb.add_argument("--n-images", type=int, default=None)
-    p_neb.add_argument("--method", default=None)
     p_neb.add_argument("--spring-constant", type=float, default=None)
-    p_neb.add_argument("--optimizer", choices=["FIRE", "BFGS", "ODE"], default=None)
-    p_neb.add_argument("--max-step", type=float, default=None)
-    p_neb.add_argument("--max-steps", type=int, default=None)
-    p_neb.add_argument("--initial-path", default=None)
     p_neb.add_argument("--tag", default=None)
     # ORCA backend only (native ORCA NEB levers)
     p_neb.add_argument("--neb-type", default=None,
@@ -84,8 +78,7 @@ def main():
     args = parser.parse_args()
 
     if args.step == "relax":
-        plan = prepare_relax(args.reaction_id, args.output_dir,
-                             backend=args.backend, fmax=args.fmax)
+        plan = prepare_relax(args.reaction_id, args.output_dir, fmax=args.fmax)
     elif args.step == "neb":
         orca_overrides = {
             "neb_type": args.neb_type, "opt_method": args.opt_method,
@@ -97,28 +90,22 @@ def main():
             "ts_guess": args.ts_guess, "restart_path": args.restart_path,
         }
         plan = prepare_neb(
-            args.reaction_id, args.output_dir, backend=args.backend,
-            n_images=args.n_images, method=args.method,
-            spring_constant=args.spring_constant, optimizer=args.optimizer,
-            max_step=args.max_step, max_steps=args.max_steps,
-            initial_path=args.initial_path, tag=args.tag,
-            orca=orca_overrides)
+            args.reaction_id, args.output_dir,
+            n_images=args.n_images, spring_constant=args.spring_constant,
+            tag=args.tag, orca=orca_overrides)
     elif args.step == "frequencies":
         plan = prepare_frequencies(
-            args.reaction_id, args.output_dir, backend=args.backend,
+            args.reaction_id, args.output_dir,
             source=args.source, imag_cutoff=args.imag_cutoff, tag=args.tag)
     elif args.step == "optts":
         plan = prepare_optts(
-            args.reaction_id, args.output_dir, backend=args.backend,
+            args.reaction_id, args.output_dir,
             imag_cutoff=args.imag_cutoff, tag=args.tag)
     elif args.step == "irc":
-        plan = prepare_irc(
-            args.reaction_id, args.output_dir, backend=args.backend,
-            tag=args.tag)
+        plan = prepare_irc(args.reaction_id, args.output_dir, tag=args.tag)
     else:
         plan = prepare_goat(
-            args.reaction_id, args.output_dir, backend=args.backend,
-            tag=args.tag,
+            args.reaction_id, args.output_dir, tag=args.tag,
             constrain_bonds=[tuple(b) for b in args.constrain_bond],
             constrain_angles=[tuple(a) for a in args.constrain_angle])
 

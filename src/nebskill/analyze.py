@@ -35,7 +35,7 @@ def main():
     reverse_barrier  = e_ts - e_product
     dft_forward      = endpoints["dft_forward_barrier_ev"]
 
-    backend    = relaxed.get("backend", "mace")
+    backend    = relaxed.get("backend", "orca")
     # Deviation of our barrier from the dataset's DFT reference. A negative
     # value means we found a LOWER barrier — a better saddle or path than the
     # dataset reports. These are the scientifically interesting cases.
@@ -50,7 +50,6 @@ def main():
         "rxn_key":                  endpoints["rxn_key"],
         "n_atoms":                  endpoints["n_atoms"],
         "backend":                  backend,
-        "model_size":               relaxed.get("model_size"),
         "charge":                   endpoints.get("charge", 0),
         "spin":                     endpoints.get("spin", 0),
         "n_images":                 neb_result["n_images"],

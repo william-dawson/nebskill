@@ -4,7 +4,7 @@
     "name": "william-dawson"
   },
   "metadata": {
-    "description": "NEB calculations for reaction barriers on organic molecules using MACE-OFF23 and the Transition1x dataset."
+    "description": "NEB reaction-barrier calculations on organic molecules with native ORCA and the Transition1x dataset."
   },
   "plugins": [
     {
@@ -14,8 +14,8 @@
         "url": "git@github.com:william-dawson/nebskill.git",
         "path": "nebskill"
       },
-      "version": "0.30.0",
-      "description": "Nudged Elastic Band calculations for reaction barriers on organic molecules using the Transition1x dataset. Backends: MACE-OFF23 (ML) and native ORCA (NEB-CI at wB97X/6-31G(d)). Requires uv; Python dependencies installed automatically. Cluster jobs run via a companion HPC agent plugin (Rikyu/Hokusai).",
+      "version": "0.31.0",
+      "description": "Nudged Elastic Band reaction-barrier calculations on organic molecules using the Transition1x dataset, powered by native ORCA (Opt / NEB-CI / NEB-TS / OptTS / Freq / IRC / GOAT at wB97X/6-31G(d)). Requires uv; Python dependencies installed automatically. Cluster jobs run via a companion HPC agent plugin (Rikyu/Hokusai).",
       "author": {
         "name": "william-dawson"
       },

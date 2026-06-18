@@ -70,7 +70,7 @@ def main():
     cfg = load_config(args.config)
     if args.backend:
         cfg["calculator"]["backend"] = args.backend
-    backend = cfg.get("calculator", {}).get("backend", "mace")
+    backend = cfg.get("calculator", {}).get("backend", "orca")
     if backend != "orca":
         print(f"ERROR: GOAT-TS is ORCA-only (backend is {backend!r}).",
               file=sys.stderr)

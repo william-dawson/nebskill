@@ -1,7 +1,7 @@
 [project]
 name = "nebskill"
-version = "0.30.0"
-description = "Nudged Elastic Band calculations for reaction barriers using MACE-OFF / ORCA and Transition1x"
+version = "0.31.0"
+description = "Nudged Elastic Band reaction-barrier calculations with native ORCA on the Transition1x dataset"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,13 +13,6 @@ dependencies = [
     "matplotlib>=3.8",
     "numpy>=1.26",
 ]
-
-# MACE backend pulls in PyTorch (~2 GB). The ORCA backend needs none of it, so it
-# is an optional extra — install `nebskill[mace]` for the MACE backend, plain
-# `nebskill` for an ORCA-only machine. torch/mace are imported lazily, so the
-# package works without this extra as long as the mace backend isn't selected.
-[project.optional-dependencies]
-mace = ["mace-torch>=0.3"]
 
 [project.scripts]
 nebskill-download = "nebskill.download:main"

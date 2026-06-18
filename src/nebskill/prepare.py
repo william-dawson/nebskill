@@ -36,12 +36,10 @@ WORKER_ENV = {
     "TOKIO_WORKER_THREADS": "1",
 }
 
-# Advisory resource hints by backend. The HPC agent's own config decides the
-# real account/partition/walltime; these are just starting points it can honor
-# or override. MACE is cheap (an ML potential); ORCA is real DFT.
+# Advisory resource hint. The HPC agent's own config decides the real
+# account/partition/walltime; this is just a starting point it can honor or
+# override.
 RESOURCE_HINTS = {
-    "mace":  {"cpus": 8,  "gpus": 0, "walltime_hint": "00:30:00",
-              "note": "MACE-OFF ML potential; fast. GPU optional (faster), CPU fine."},
     "orca":  {"cpus": 8,  "gpus": 0, "walltime_hint": "08:00:00",
               "note": "Native ORCA DFT job; cpus follow the orca nprocs config "
                       "(MPI ranks must match --ntasks). NEB can be long."},
@@ -82,7 +80,7 @@ class JobPlan:
     resources: dict                # advisory cpus/gpus/walltime
     inputs_ready: bool             # all `upload` files exist locally
     pre_launch: str = ""           # shell lines for the agent's JobSpec.pre_launch
-                                   # (e.g. ORCA module loads); "" for mace
+                                   # (the ORCA module loads / env exports)
     missing: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -140,9 +138,8 @@ def _finish(plan: JobPlan) -> JobPlan:
 
 def _resources_and_prelaunch(backend_eff: str, step: str) -> tuple[dict, str]:
     """Resource hint + pre_launch for the plan. ORCA pulls its rank count /
-    memory / module-loads from the configured recipe; mace uses the static
-    hints and no pre_launch."""
-    res = dict(RESOURCE_HINTS.get(backend_eff, RESOURCE_HINTS["mace"]))
+    memory / module-loads from the configured recipe."""
+    res = dict(RESOURCE_HINTS["orca"])
     if backend_eff == "orca":
         pre_launch, overrides = _orca_job_extras(step)
         res.update(overrides)
@@ -166,8 +163,6 @@ def prepare_relax(reaction_id: int, output_dir: str | None = None, *,
                "--output-dir", "."]
     if fmax:
         command += ["--fmax", str(fmax)]
-    if backend:
-        command += ["--backend", backend]
 
     resources, pre_launch = _resources_and_prelaunch(backend_eff, "relax")
     return _finish(JobPlan(
@@ -181,23 +176,17 @@ def prepare_relax(reaction_id: int, output_dir: str | None = None, *,
 
 
 def prepare_neb(reaction_id: int, output_dir: str | None = None, *,
-                n_images: int | None = None, method: str | None = None,
-                spring_constant: float | None = None, optimizer: str | None = None,
-                max_step: float | None = None, max_steps: int | None = None,
-                initial_path: str | None = None, backend: str | None = None,
-                tag: str | None = None, orca: dict | None = None) -> JobPlan:
+                n_images: int | None = None, spring_constant: float | None = None,
+                backend: str | None = None, tag: str | None = None,
+                orca: dict | None = None) -> JobPlan:
     backend_eff = effective_backend(backend)
     root = reaction_root(reaction_id, output_dir)
-    # ORCA param sweeps (neb-type, optimizer) get their own attempt dir too.
-    extra = None
-    if backend_eff == "orca" and orca:
-        extra = [orca.get("neb_type"), orca.get("opt_method")]
+    # ORCA param sweeps (neb-type, opt-method) get their own attempt dir too.
+    extra = [(orca or {}).get("neb_type"), (orca or {}).get("opt_method")] \
+        if orca else None
     attempt = tag or attempt_name(
-        backend_eff, optimizer=optimizer, n_images=n_images,
-        spring_constant=spring_constant, method=method,
-        max_step=max_step, max_steps=max_steps,
-        seeded=bool(initial_path or (orca or {}).get("restart_path")),
-        extra=extra)
+        backend_eff, n_images=n_images, spring_constant=spring_constant,
+        seeded=bool((orca or {}).get("restart_path")), extra=extra)
     out_dir = root / attempt
     out_dir.mkdir(parents=True, exist_ok=True)
     write_latest(root, attempt)   # downstream commands target this attempt
@@ -217,25 +206,7 @@ def prepare_neb(reaction_id: int, output_dir: str | None = None, *,
     command = ["nebskill-neb", "--reaction-id", str(reaction_id),
                "--output-dir", "."]
     if n_images:        command += ["--n-images", str(n_images)]
-    if method:          command += ["--method", method]
     if spring_constant: command += ["--spring-constant", str(spring_constant)]
-    if optimizer:       command += ["--optimizer", optimizer]
-    if max_step:        command += ["--max-step", str(max_step)]
-    if max_steps:       command += ["--max-steps", str(max_steps)]
-    if backend:         command += ["--backend", backend]
-    if initial_path:
-        # stage the seed trajectory into the job dir under a stable name; the
-        # worker reads it by that name from its cwd. A missing source is left
-        # to surface via _finish (the staged file won't exist -> inputs_ready
-        # False); re-passing the already-staged path is a no-op (samefile).
-        seed_name = "initial_path.xyz"
-        seed_src = Path(initial_path)
-        seed_dst = out_dir / seed_name
-        if seed_src.exists() and not (
-                seed_dst.exists() and seed_src.samefile(seed_dst)):
-            shutil.copy2(seed_src, seed_dst)
-        upload.append(seed_name)
-        command += ["--initial-path", seed_name]
 
     # ORCA NEB levers. Flag-valued options pass straight through; file-valued
     # ones (ts-guess, restart-path) are staged into the job dir under stable
@@ -311,8 +282,6 @@ def prepare_frequencies(reaction_id: int, output_dir: str | None = None, *,
     command = ["nebskill-frequencies", "--reaction-id", str(reaction_id),
                "--output-dir", ".", "--source", source,
                "--imag-cutoff", str(imag_cutoff)]
-    if backend:
-        command += ["--backend", backend]
 
     result_name = f"frequencies_{backend_eff}_{source}.json"
     resources, pre_launch = _resources_and_prelaunch(backend_eff, "frequencies")
@@ -347,8 +316,6 @@ def prepare_optts(reaction_id: int, output_dir: str | None = None, *,
 
     command = ["nebskill-optts", "--reaction-id", str(reaction_id),
                "--output-dir", ".", "--imag-cutoff", str(imag_cutoff)]
-    if backend:
-        command += ["--backend", backend]
 
     resources, pre_launch = _resources_and_prelaunch(backend_eff, "optts")
     return _finish(JobPlan(
@@ -381,8 +348,6 @@ def prepare_irc(reaction_id: int, output_dir: str | None = None, *,
 
     command = ["nebskill-irc", "--reaction-id", str(reaction_id),
                "--output-dir", "."]
-    if backend:
-        command += ["--backend", backend]
 
     resources, pre_launch = _resources_and_prelaunch(backend_eff, "irc")
     return _finish(JobPlan(
@@ -420,8 +385,6 @@ def prepare_goat(reaction_id: int, output_dir: str | None = None, *,
 
     command = ["nebskill-goat", "--reaction-id", str(reaction_id),
                "--output-dir", "."]
-    if backend:
-        command += ["--backend", backend]
     for (i, j) in (constrain_bonds or []):
         command += ["--constrain-bond", str(i), str(j)]
     for (i, j, k) in (constrain_angles or []):

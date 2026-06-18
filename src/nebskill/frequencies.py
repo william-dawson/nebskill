@@ -2,10 +2,9 @@
 Vibrational analysis of a transition state: confirm it is a genuine first-order
 saddle (exactly one imaginary mode).
 
-With MACE this is a finite-difference Hessian via ASE's Vibrations (6N+1 force
-evaluations), cheap. With ORCA the Hessian is analytic (! Freq) and a real DFT
-cost, so like relax/neb it is planned with nebskill-plan and dispatched to a
-compute node by the HPC agent (see /nebskill:running-on-the-cluster).
+ORCA computes an analytic Hessian (! Freq) — a real DFT cost, so like relax/neb
+it is planned with nebskill-plan and dispatched to a compute node by the HPC
+agent (see /nebskill:running-on-the-cluster).
 
 Verdict:
   - exactly 1 imaginary mode  -> genuine first-order saddle (a real TS)
@@ -20,7 +19,6 @@ from pathlib import Path
 import numpy as np
 from ase import Atoms
 
-from nebskill.calculator import make_calculator
 from nebskill.config import load_config
 
 
@@ -55,7 +53,6 @@ def main():
     parser.add_argument("--imag-cutoff", type=float, default=50.0,
                         help="cm^-1; imaginary modes below this are treated as "
                              "near-zero trans/rot noise, not real saddle modes")
-    parser.add_argument("--backend", choices=["mace", "orca"], default=None)
     parser.add_argument("--tag", default=None,
                         help="Analyze the TS of a tagged attempt subdirectory")
     args = parser.parse_args()
@@ -69,13 +66,15 @@ def main():
         # Local run: resolve the attempt being analyzed and stage inputs.
         from nebskill.prepare import prepare_frequencies
         out_dir = prepare_frequencies(
-            args.reaction_id, args.output_dir, backend=args.backend,
+            args.reaction_id, args.output_dir,
             source=args.source, imag_cutoff=args.imag_cutoff,
             tag=args.tag).local_dir
 
     cfg = load_config(args.config)
-    if args.backend:
-        cfg["calculator"]["backend"] = args.backend
+    backend = cfg.get("calculator", {}).get("backend", "orca")
+    if backend != "orca":
+        print(f"ERROR: backend must be 'orca' (got {backend!r})", file=sys.stderr)
+        sys.exit(1)
 
     endpoints = json.loads((out_dir / "endpoints.json").read_text())
     charge = endpoints.get("charge", 0)
@@ -86,43 +85,19 @@ def main():
     else:
         atoms, ts_idx = ts_from_neb(out_dir)
 
-    backend = cfg.get("calculator", {}).get("backend", "mace")
     print(f"Vibrational analysis of reaction {args.reaction_id} "
-          f"({endpoints['formula']}) — source={args.source}, backend={backend}, "
+          f"({endpoints['formula']}) — source={args.source}, ORCA, "
           f"charge={charge}, spin={spin}")
 
-    if backend == "orca":
-        # ORCA computes an analytic Hessian (! Freq) — far better than ASE's
-        # finite-difference for a DFT TS.
-        from nebskill import orca
-        vib = orca.frequencies(atoms, charge=charge, mult=int(spin) + 1,
-                               config=cfg, job_dir=out_dir,
-                               imag_cutoff=args.imag_cutoff)
-        n_imag  = vib["n_imaginary"]
-        imag    = vib["imaginary_cm"]
-        verdict = vib["verdict"]
-        lowest_real = vib["lowest_real_cm"]
-    else:
-        atoms.calc = make_calculator(cfg, charge=charge, spin=spin)
-
-        from ase.vibrations import Vibrations
-        vib_dir = out_dir / "vib_tmp"
-        v = Vibrations(atoms, name=str(vib_dir))
-        v.clean()                  # clear any stale cache
-        v.run()
-        freqs = v.get_frequencies()   # complex ndarray, cm^-1
-        v.clean()
-
-        # Imaginary modes appear with a non-zero imaginary part. Ignore those
-        # below the cutoff (near-zero translational/rotational modes).
-        imag = sorted(round(float(f.imag), 1) for f in freqs
-                      if abs(f.imag) > args.imag_cutoff)
-        real = sorted(float(f.real) for f in freqs
-                      if abs(f.imag) <= args.imag_cutoff)
-        n_imag = len(imag)
-        lowest_real = round(real[0], 1) if real else None
-        verdict = ("first_order_saddle" if n_imag == 1 else
-                   "minimum" if n_imag == 0 else "higher_order_saddle")
+    # ORCA computes an analytic Hessian (! Freq).
+    from nebskill import orca
+    vib = orca.frequencies(atoms, charge=charge, mult=int(spin) + 1,
+                           config=cfg, job_dir=out_dir,
+                           imag_cutoff=args.imag_cutoff)
+    n_imag  = vib["n_imaginary"]
+    imag    = vib["imaginary_cm"]
+    verdict = vib["verdict"]
+    lowest_real = vib["lowest_real_cm"]
 
     result = {
         "reaction_id":      args.reaction_id,

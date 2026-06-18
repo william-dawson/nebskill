@@ -1,12 +1,11 @@
-"""Native ORCA backend: drive ORCA's own Opt / NEB-CI / Freq instead of using
-ASE as the force engine.
+"""Native ORCA backend: drive ORCA's own Opt / NEB-CI / Freq.
 
-Unlike mace (an in-process ASE calculator), ORCA is an external binary with
-its own geometry optimizer, nudged-elastic-band, and analytic frequencies. So
-this backend writes an ORCA input file, invokes the `orca` binary once per job,
-and parses the output back into the *same* JSON schema the ASE path produces
+ORCA is an external binary with its own geometry optimizer, nudged-elastic-band,
+and analytic frequencies (not an in-process ASE calculator). So this backend
+writes an ORCA input file, invokes the `orca` binary once per job, and parses the
+output back into the JSON schema the rest of nebskill consumes
 (relaxed_endpoints.json / neb_result.json / frequencies_*.json) — so analyze,
-summary, plot, and the dispatch flow are all unchanged.
+summary, plot, and the dispatch flow all work off those files.
 
 Level of theory defaults to the Transition1x recipe (ωB97X / 6-31G(d)), which is
 also the method ORCA used to generate the dataset, so NEB-CI here reproduces
@@ -469,7 +468,7 @@ def optimize(atoms: Atoms, charge: int, mult: int, config: dict,
 
 def run_neb(reactant: Atoms, product: Atoms, charge: int, mult: int,
             config: dict, job_dir: Path, params: dict) -> dict:
-    """Run a native ORCA NEB; return a dict mirroring run_phase()'s result plus
+    """Run a native ORCA NEB; return the band, energies, ts index, plus
     the converged band, so neb.py can write neb_result.json + neb_trajectory.xyz.
     Energies are absolute eV per image (analyze subtracts them)."""
     import time

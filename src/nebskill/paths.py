@@ -33,19 +33,19 @@ def relax_dirname(backend: str) -> str:
 
 
 def effective_backend(cli_backend: str | None) -> str:
-    """Backend the run will actually use: CLI override, else neb_local.yaml,
-    else the bundled default (mace). Resolved here so the attempt name reflects
-    it without the agent having to think about it."""
+    """Backend the run will actually use. ORCA is the only backend; this stays
+    as a single resolution point (CLI override, else neb_local.yaml, else orca)
+    so the attempt name and relax dir are derived consistently."""
     if cli_backend:
         return cli_backend
     local = Path(LOCAL_CFG)
     if local.exists():
         try:
             cfg = yaml.safe_load(local.read_text()) or {}
-            return cfg.get("calculator", {}).get("backend", "mace")
+            return cfg.get("calculator", {}).get("backend", "orca")
         except Exception:
             pass
-    return "mace"
+    return "orca"
 
 
 def attempt_name(backend: str, *, optimizer=None, n_images=None,

@@ -5,15 +5,11 @@ dataset:
   download_url: https://ndownloader.figshare.com/files/36035789
 
 calculator:
-  backend: mace               # mace | orca
-  # --- mace backend ---
-  model_size: medium          # small | medium | large
-  device: auto                # auto | cpu | cuda
-  dtype: float64
-  # --- orca backend: level of theory (reproduce Transition1x) ---
+  backend: orca               # orca (the only backend)
+  # --- level of theory (reproduce Transition1x) ---
   xc: wb97x                   # ωB97X, as in the dataset paper
   basis: 6-31g(d)             # 6-31G(d), as in the dataset paper
-  # --- orca backend (native ORCA jobs: Opt / NEB-CI / Freq) ---
+  # --- native ORCA jobs: Opt / NEB-CI / Freq ---
   # ORCA is an external binary, not a Python lib: it is invoked per job, has its
   # own NEB/optimizer/frequencies, and needs the cluster's modules loaded first.
   # The machine-specific recipe (binary path, modules, procs) is filled in at
@@ -27,16 +23,12 @@ calculator:
     pre_launch: ""            # shell lines run before orca (module load / export),
                               # emitted into the job as JobSpec.pre_launch
 
-relaxation:
-  optimizer_1: FIRE
-  optimizer_1_max_steps: 500
-  optimizer_2: BFGS
-  fmax: 0.01                  # eV/Å — endpoint relaxation (paper: 0.01)
-
-# Defaults are close to the Transition1x recipe (10 images, k=0.1, CI-NEB to
-# 0.05 eV/Å) but intentionally not a strict clone. The goal is to reproduce
-# most reactions and then surface deviations — especially cases where our NEB
-# finds a LOWER barrier (a better saddle / path) than the dataset reports.
+# Endpoint relaxation and the NEB run are native ORCA jobs (! Opt, ! NEB-CI) — see
+# the calculator.orca recipe above for level of theory and resources.
+#
+# Defaults track the Transition1x recipe (wB97X/6-31G(d), CI-NEB) but are not a
+# strict clone. The goal is to reproduce most reactions and then surface
+# deviations — especially a LOWER barrier (a better saddle/path) than the dataset.
 neb:
   n_images: auto              # auto = max(n_images_min, round(path_length_Å / images_per_angstrom))
   images_per_angstrom: 1.0
@@ -44,21 +36,9 @@ neb:
                               # under-resolve some ring rearrangements at our ORCA
                               # NEB-CI level — 15 recovered the dataset barrier
                               # exactly on every such case (r11/r13/r42/r47/r52/r59)
-  method: improvedtangent     # improvedtangent | string | spline | eb
-  interpolation: idpp         # idpp | linear
-  spring_constant: 0.1        # eV/Å — paper value
-  remove_rotation_translation: true
-  optimizer: FIRE             # FIRE | BFGS | ODE — band optimizer. ODE is ASE's
-                              # NEB-specialized solver, best for tricky bands;
-                              # paper used BFGS
-  max_step: null              # Å per step; null = optimizer default. Lower
-                              # (e.g. 0.05) stabilizes an oscillating band
-  phase1_fmax: 0.5            # eV/Å — paper's plain-NEB target
-  phase1_max_steps: 300
-  phase2_fmax: 0.05           # eV/Å — paper's CI-NEB target
-  phase2_max_steps: 500
-  # --- orca backend: native ORCA NEB (its own keywords; see the ORCA manual) ---
-  # These map onto the %neb block. n_images/spring_constant above are reused.
+  # --- native ORCA NEB (its own keywords; see the ORCA manual) -> %neb block.
+  # n_images above is reused; spring constant is ORCA's default unless
+  # --spring-constant is given (ORCA's SpringConst is Eh/Bohr²). ---
   orca:
     neb_type: NEB-CI          # NEB-CI | NEB-TS | FAST-NEB-TS | LOOSE-NEB-TS |
                               # TIGHT-NEB-TS | ZOOM-NEB-CI (the ! simple-input variant)
@@ -70,10 +50,6 @@ neb:
     spring_constant2: null    # SpringConst2 (upper, energy-weighted); null = default
     energy_weighted: true     # Energy_Weighted (variable springs)
     free_end: false           # Free_End (let endpoints relax along the path)
-
-retry:
-  max_attempts: 3
-  fallback_method: string
 
 filter:
   min_barrier_ev: 0.1         # skip reactions with barrier below this
