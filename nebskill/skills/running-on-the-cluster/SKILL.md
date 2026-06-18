@@ -28,7 +28,7 @@ written with `remote_project_dir`).
 ### 1 — Plan it locally
 
 ```bash
-nebskill-plan neb --reaction-id 42 --optimizer ODE --n-images 13
+nebskill-plan neb --reaction-id 42 --neb-type NEB-TS --n-images 15
 ```
 (Subcommand is `relax`, `neb`, or `frequencies`; pass the same parameters you'd
 give the real command.) This computes the attempt directory, stages the inputs
@@ -41,7 +41,7 @@ neb). Fields you'll use:
 - `local_dir` — where outputs are collected on this machine
 - `remote_subdir` — suggested per-attempt path under the remote project dir
 - `upload` / `download` — files to move (relative to `local_dir`)
-- `progress_file` — the jsonl to `fs_tail` while it runs (null for relax/freq)
+- `progress_file` — ORCA's `neb.out` to `fs_tail` while it runs (null for relax/freq)
 - `resources` — advisory `cpus` / `gpus` / `walltime_hint`
 
 ### 2 — Stage inputs to the cluster
@@ -60,10 +60,9 @@ Map the plan onto the agent's `submit_job` JobSpec:
 - `executable: "uv"`, `arguments: ["run", *command]`
 - `directory:` the remote job directory
 - `environment:` the plan's `environment` (so `NEBSKILL_WORKER=1` etc. are set)
-- `pre_launch:` the plan's `pre_launch` — for the **orca** backend this carries
-  the `module load` / `export` lines ORCA needs (its MPI/runtime libraries).
-  Empty for mace. These must run before the executable, which is exactly
-  what JobSpec.pre_launch is for.
+- `pre_launch:` the plan's `pre_launch` — the `module load` / `export` lines
+  ORCA needs (its MPI/runtime libraries), from the configured recipe. These must
+  run before the executable, which is exactly what JobSpec.pre_launch is for.
 - `resources:` honor the plan's `cpus`/`gpus`. For **orca**, the plan also gives
   `ntasks` and `mem_mb` derived from the ORCA `nprocs` recipe — pass `ntasks`
   through so the MPI rank count matches ORCA's `%pal nprocs` (a mismatch wastes
@@ -80,24 +79,20 @@ Call `submit_job`; keep the returned `job_id`.
 
 ### 4 — Watch it (background-friendly)
 
-Poll `get_job_status(job_id)` until it leaves `queued`/`active`. While it runs, if
-the plan has a `progress_file`, `fs_tail` the remote `<job dir>/<progress_file>`
-to watch convergence live. The format depends on the backend:
-- **mace** → `progress_file` is `neb_progress_NNNN.jsonl`, one JSON line per
-  optimizer step with `fmax`, the running `barrier_est_ev`, and the peak image.
-- **orca** → `progress_file` is `neb.out`, ORCA's own NEB log: watch its
-  per-iteration table (max/RMS perpendicular force, the climbing-image energy).
-
-Either way, this is how you notice a band stalling or a barrier creeping up
-mid-run and decide to cancel (`cancel_job`) and re-plan with different parameters.
-(For `relax`/`frequencies` there's no progress file — just poll status.)
+Poll `get_job_status(job_id)` until it leaves `queued`/`active`. For a NEB the
+plan's `progress_file` is `neb.out` — `fs_tail` the remote `<job dir>/neb.out` to
+watch ORCA's NEB log live: its per-iteration table (max/RMS perpendicular force,
+the climbing-image energy). This is how you notice a band stalling or a barrier
+creeping up mid-run and decide to cancel (`cancel_job`) and re-plan with
+different parameters. (For `relax`/`frequencies` there's no progress file — just
+poll status.)
 
 ### 5 — Fetch results
 
 When the job completes, `fs_download` each file in `download` from the remote job
 directory back into `local_dir`. Now the outputs (e.g. `neb_result.json`,
-`neb_trajectory.xyz`, the progress jsonl) sit in the local attempt directory
-exactly as a local run would leave them.
+`neb_trajectory.xyz`, `neb.out`) sit in the local attempt directory exactly as a
+local run would leave them.
 
 ### 6 — Analyze locally
 
@@ -105,23 +100,20 @@ Run the cheap local step on the fetched results:
 ```bash
 nebskill-analyze --reaction-id 42      # reads the latest attempt automatically
 ```
-`nebskill-monitor --reaction-id 42` now replays the full downloaded progress
-trace, and `nebskill-summary --reaction-id 42` tabulates every attempt.
+`nebskill-summary --reaction-id 42` tabulates every attempt.
 
 ## Why this never clobbers
 
 The attempt directory is derived from the parameters (`nebskill-plan` names it,
-e.g. `mace_ode_n13` vs `orca_n20_nebci`), both locally (`local_dir`) and remotely
-(`remote_subdir`). Different parameters → different directories on both sides, so
-concurrent or repeated runs never overwrite each other, and downloaded results
-always land back with the arguments that produced them. relax is namespaced per
-backend (`relax_mace` / `relax_orca`) so an orca NEB never picks up mace-relaxed
-endpoints.
+e.g. `orca_n15_nebci` vs `orca_n15_nebts`), both locally (`local_dir`) and
+remotely (`remote_subdir`). Different parameters → different directories on both
+sides, so concurrent or repeated runs never overwrite each other, and downloaded
+results always land back with the arguments that produced them.
 
 ## Running fully locally instead
 
-If Claude is already on the login node with a shared filesystem (and, for mace, a
-CPU is acceptable), skip the agent entirely: just run `nebskill-relax` /
+If Claude is already on the login node with a shared filesystem and ORCA is
+available there, skip the agent entirely: just run `nebskill-relax` /
 `nebskill-neb` / `nebskill-frequencies` directly. They do the same planning
 in-process and compute in the attempt directory. Use the cluster loop when the
-compute belongs on a batch node (especially ORCA DFT, or GPU MACE).
+compute belongs on a batch node (ORCA DFT can run for hours).

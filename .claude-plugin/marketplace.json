@@ -21,7 +21,7 @@
       },
       "homepage": "https://github.com/william-dawson/nebskill",
       "repository": "https://github.com/william-dawson/nebskill",
-      "keywords": ["computational-chemistry", "NEB", "MACE", "reaction-barriers", "molecular-simulation", "ASE"]
+      "keywords": ["computational-chemistry", "NEB", "ORCA", "DFT", "reaction-barriers", "transition-states", "molecular-simulation", "transition1x"]
     }
   ]
 }

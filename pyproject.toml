@@ -30,7 +30,6 @@ nebskill-frequencies = "nebskill.frequencies:main"
 nebskill-optts    = "nebskill.optts:main"
 nebskill-irc      = "nebskill.irc:main"
 nebskill-goat     = "nebskill.goat:main"
-nebskill-monitor  = "nebskill.monitor:main"
 nebskill-summary  = "nebskill.summary:main"
 
 [build-system]

@@ -1,12 +1,12 @@
 ---
 name: configuring-machine
 description: >
-  One-time setup for nebskill on a machine: choose the calculator backend
-  (mace or orca), make sure a companion HPC agent plugin (Rikyu for AI4S,
-  Hokusai for HBW2) is installed and connected so jobs can reach the cluster,
-  install the nebskill Python package with uv both locally and on the cluster,
-  and write neb_local.yaml. Use once on each new machine, or when the user asks
-  how to set up nebskill.
+  One-time setup for nebskill on a machine: capture the cluster's ORCA recipe
+  (binary, modules, nprocs), make sure a companion HPC agent plugin (Rikyu for
+  AI4S, Hokusai for HBW2) is installed and connected so jobs can reach the
+  cluster, install the nebskill Python package with uv both locally and on the
+  cluster, and write neb_local.yaml. Use once on each new machine, or when the
+  user asks how to set up nebskill.
 allowed-tools: Bash Read Write
 ---
 
@@ -29,11 +29,10 @@ So setup is: install/verify the HPC agent, then install nebskill on both sides.
 ## Checklist
 
 - [ ] 1. Working directory
-- [ ] 2. Choose the calculator backend (mace or orca)
+- [ ] 2. Capture the ORCA recipe (binary path, modules, nprocs, memory)
 - [ ] 3. Install and connect the HPC agent (Rikyu / Hokusai)
-- [ ] 4. Determine the PyTorch variant (if the mace backend was chosen)
-- [ ] 5. Install nebskill with uv — locally, and on the cluster
-- [ ] 6. Write neb_local.yaml and record the remote project directory
+- [ ] 4. Install nebskill with uv — locally, and on the cluster
+- [ ] 5. Write neb_local.yaml and record the remote project directory
 
 ---
 
@@ -48,34 +47,22 @@ results back here).
 
 ---
 
-## 2 — Choose the calculator backend
+## 2 — Capture the ORCA recipe
 
-Ask which backend this project should use — present them as equals, chosen by
-goal, not by which is "better":
+Energetics are native ORCA DFT at ωB97X/6-31G(d) — the method that *generated*
+Transition1x, so NEB-CI here reproduces their procedure with ORCA's own optimizer
+and analytic Hessian. ORCA is an external binary + modules on the cluster (not a
+pip package), so capture the machine-specific recipe now: ask the user for a
+working ORCA jobscript and read off:
+- the **full path** to the `orca` binary (must be the full path; ORCA needs it
+  for MPI),
+- the `module load` / `export` lines ORCA needs (e.g. `module load intel`,
+  `module load openmpi`, and any environment exports from their jobscript),
+- the MPI rank count (`--ntasks-per-node`, → ORCA `%pal nprocs`) and memory
+  (`--mem`, → per-rank `%maxcore`).
 
-> "Which calculator should NEB calculations use here?
->   - **mace** — MACE-OFF23 ML potential. Approximate forces, seconds per
->     evaluation. Good for exploring many reactions / cheap triage.
->   - **orca** — native ORCA jobs (its own Opt / NEB-CI / Freq) at ωB97X/6-31G(d).
->     This is the method that *generated* Transition1x, so NEB-CI here reproduces
->     their procedure exactly, with ORCA's own optimizer and analytic Hessian.
->     Requires an ORCA install on the cluster (a binary + modules, not a pip
->     package)."
-
-No default — ask. The choice is written to `neb_local.yaml` (step 6) and shapes
-the rest of setup:
-- **mace** → the PyTorch build matters (GPU acceleration); do step 4.
-- **orca** → torch/GPU are irrelevant (ORCA is an external binary); skip step 4's
-  GPU index. Instead capture the **ORCA recipe** now — ask the user for a working
-  ORCA jobscript and read off:
-    - the full path to the `orca` binary (it must be the full path; ORCA needs it
-      for MPI),
-    - the `module load` / `export` lines ORCA needs (e.g. `module load intel`,
-      `module load openmpi`, and any environment exports from their jobscript),
-    - the MPI rank count (`--ntasks-per-node`, → ORCA `%pal nprocs`) and memory
-      (`--mem`, → per-rank `%maxcore`).
-  These go into `neb_local.yaml`'s `calculator.orca` block in step 6. Account and
-  partition are **not** captured here — those belong to the HPC agent.
+These go into `neb_local.yaml`'s `calculator.orca` block in step 5. Account and
+partition are **not** captured here — those belong to the HPC agent.
 
 ---
 
@@ -101,55 +88,24 @@ command (`/ai4s-demo` / `/hokusai-demo`).
 **Confirm the agent works before continuing** — if its MCP job tools
 (`submit_job`, `fs_upload`, …) aren't reachable, nebskill can't dispatch. If the
 user only ever runs locally (Claude already on the login node with a shared
-filesystem, MACE on CPU), the agent is optional and steps can run in-process;
-note that and skip the remote half of step 5.
+filesystem and ORCA available), the agent is optional and steps can run
+in-process; note that and skip the remote half of step 4.
 
 ---
 
-## 4 — Determine the PyTorch variant (mace backend)
+## 4 — Install nebskill with uv
 
-**If the backend is `orca`**, skip the GPU index — install CPU torch (ORCA
-doesn't use torch at all; it's only pulled in as a transitive dependency). Go to
-step 5.
-
-**If the backend is `mace`**, the PyTorch build matters. Ask directly — don't
-probe with a job. Hint from the cluster: a GPU partition / `module load
-cuda|rocm` means a GPU build is likely; otherwise CPU.
-
-Ask:
-> "What PyTorch build does the **cluster** need?
->   - **NVIDIA GPU** → I need the CUDA version
->   - **AMD GPU** → I need the ROCm version
->   - **No GPU / not sure** → CPU is fine (MACE-OFF runs on CPU, just slower)"
-
-If they have a GPU but don't know the version, it must be checked on a node that
-has the GPU — e.g. via the HPC agent: submit a tiny job running `nvidia-smi`
-(CUDA version is top-right) or `rocm-smi --version`. Map to a PyTorch index:
-- CUDA 13.2 → `--index https://download.pytorch.org/whl/cu132`
-- ROCm 6.1 → `--index https://download.pytorch.org/whl/rocm6.1`
-- CPU → no `--index`
-
-Confirm before installing.
-
----
-
-## 5 — Install nebskill with uv
-
-The project pyproject.toml is just (pick the dependency line by backend):
+The project pyproject.toml is just:
 ```toml
 [project]
 name = "neb-project"
 version = "0.1.0"
 requires-python = ">=3.12"
-# mace backend — pulls in PyTorch (~2 GB):
-dependencies = ["nebskill[mace] @ git+https://github.com/william-dawson/nebskill.git"]
-# orca backend — no PyTorch, much lighter install:
-# dependencies = ["nebskill @ git+https://github.com/william-dawson/nebskill.git"]
+dependencies = ["nebskill @ git+https://github.com/william-dawson/nebskill.git"]
 ```
 
-MACE needs PyTorch; ORCA needs none of it. Use the **plain** `nebskill` (no
-`[mace]`) for an ORCA-only machine — the install is far smaller and the PyTorch
-index step below doesn't apply.
+nebskill's dependencies are light (ASE, h5py, numpy — no PyTorch). ORCA itself is
+the cluster binary captured in step 2, not a pip package.
 
 **Always set these before any `uv sync`** (HPC process caps break uv otherwise):
 ```bash
@@ -158,19 +114,12 @@ export RAYON_NUM_THREADS=1 TOKIO_WORKER_THREADS=1
 export UV_CONCURRENT_DOWNLOADS=4 UV_CONCURRENT_BUILDS=1 CARGO_BUILD_JOBS=1
 ```
 
-For NVIDIA, verify the index URL first:
-```bash
-curl -sI https://download.pytorch.org/whl/cu{VERSION}/ | head -1
-```
-If not `200`/`301`, use the nearest version from
-https://download.pytorch.org/whl/ and tell the user.
-
 ### Local install (always)
 
 Gives Claude the `nebskill-*` commands — including `nebskill-plan`, `load`,
 `analyze`, `summary`, `plot`. Write the pyproject.toml in WORKING_DIR and:
 ```bash
-cd WORKING_DIR && uv sync [--index ...]
+cd WORKING_DIR && uv sync
 ```
 
 ### Cluster install (if jobs run on a remote cluster)
@@ -187,30 +136,23 @@ same capped `uv sync` in that directory. A clean way:
   ulimit -s 512
   export RAYON_NUM_THREADS=1 TOKIO_WORKER_THREADS=1 UV_CONCURRENT_BUILDS=1 CARGO_BUILD_JOBS=1
   command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh
-  cd ~/nebskill-project && uv sync [--index ...]
+  cd ~/nebskill-project && uv sync
   ```
 Show the user the output. This remote project directory is where every NEB job
-will `cd` and run `uv run nebskill-*` — record it for step 6 and for
+will `cd` and run `uv run nebskill-*` — record it for step 5 and for
 `/nebskill:running-on-the-cluster`.
 
 ---
 
-## 6 — Write neb_local.yaml and record the remote project directory
+## 5 — Write neb_local.yaml and record the remote project directory
 
-Write the backend choice to `WORKING_DIR/neb_local.yaml` (merged over the bundled
-defaults by every run, locally and — because it is uploaded with each job — on
-the node):
-
+Write the level of theory **and** the ORCA recipe captured in step 2 to
+`WORKING_DIR/neb_local.yaml` (merged over the bundled defaults by every run,
+locally and — because it is uploaded with each job — on the node). `nprocs` is
+the one knob that matters most: it drives both ORCA's `%pal nprocs` and the job's
+SLURM `--ntasks`, so they can never disagree.
 ```yaml
 # Generated by /nebskill:configuring-machine
-calculator:
-  backend: mace        # or orca
-```
-
-If `orca` was chosen, include the level of theory **and** the ORCA recipe
-captured in step 2. `nprocs` is the one knob that matters most: it drives both
-ORCA's `%pal nprocs` and the job's SLURM `--ntasks`, so they can never disagree.
-```yaml
 calculator:
   backend: orca
   xc: wb97x

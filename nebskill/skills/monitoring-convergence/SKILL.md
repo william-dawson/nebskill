@@ -1,70 +1,63 @@
 ---
 name: monitoring-convergence
 description: >
-  Diagnoses NEB convergence failures and drives an agent-based retry loop.
-  Calls nebskill-diagnose, reasons about the failure mode, chooses
-  one intervention, and re-runs nebskill-neb with adjusted parameters.
-  Use only when running-neb returns returncode=4.
+  Diagnoses native ORCA NEB convergence failures and drives an agent-based retry
+  loop. Reads the ORCA neb.out, reasons about the failure mode, chooses one
+  intervention, and re-runs nebskill-neb with adjusted parameters. Use only when
+  running-neb returns returncode=4.
 allowed-tools: Bash Read Write
 ---
 
 Only enter this step if `nebskill-neb` exited with code 4. You drive the
-retry loop: diagnose → reason → intervene → re-run → repeat.
+retry loop: read neb.out → reason → intervene → re-run → repeat.
 
-Maximum attempts: `retry.max_attempts` in config (default 3).
+Use your judgment on how many attempts to make (≈3 is a sensible default) before
+declaring the reaction defeated by the method and reporting why.
 
 ---
 
-## 4.1 — Compute diagnostics
+## 4.1 — Read the ORCA NEB log
 
-```bash
-nebskill-diagnose --reaction-id INT
-```
+The native ORCA NEB writes its own log, `neb.out` (on a cluster, `fs_tail` it
+live; after a run, read it). Its per-iteration table is your diagnostic — read
+*how* it failed, which the final snapshot can't tell you:
+- **the climbing-image energy / barrier plateaus high and the max perpendicular
+  force won't drop** → the band is stuck; reach for `--neb-type NEB-TS` (converge
+  the saddle, not every tail image) or a better starting path.
+- **the force oscillates / rings** → step too large; lower `--max-move`, or switch
+  `--opt-method` (VPO/FIRE).
+- **the barrier is still descending at MaxIter** → it was converging, just needs
+  more `--max-iter`.
+- **the band kinks early** → poor initial guess; `--sidpp` or more `--n-images`.
+- **the run timed out without converging** → `neb.out`'s last iterations are your
+  record of where it stalled; near-converged at the tails is the classic
+  `--neb-type NEB-TS` case.
 
-Read `outputs/reaction_{id:04d}/diagnostics.json` in full.
-
-Also get the per-step trace with `nebskill-monitor --reaction-id INT` (one line
-per optimizer step: `step`, `fmax`, `barrier_est_ev`, `ts_image`, `elapsed_s`).
-It tells you *how* it failed, which the final snapshot can't:
-- **fmax plateau** — fmax flat over many steps, well above target → the band is
-  stuck; reach for a smaller step or the ODE optimizer, not a geometry change.
-- **fmax oscillation** — fmax bouncing up and down → step too large; lower it.
-- **wandering `ts_image`** — the peak image index keeps jumping → the band hasn't
-  localized the saddle; more images or the ODE optimizer.
-- **`barrier_est_ev` still falling at the cap** → it was converging, just needs
-  more steps.
-On a timed-out run this file is your only record of where it stalled — read it
-first.
+Also check `neb_result.json` for the extracted barrier and `converged` flag.
 
 ---
 
 ## 4.2 — Reason about the failure
 
-Consider all metrics together. Key signals:
+From `neb.out`, read these together:
 
-**`failure_mode`** — script's classification. Treat as a hint, not a verdict.
+- **Did the barrier converge but the band didn't?** The climbing-image energy
+  flattens while the max perpendicular force stays above tolerance on the tail
+  images → the saddle is found, the tails are stalling. The decisive fix is
+  `--neb-type NEB-TS` (don't require every image to converge).
+- **Is the whole band still descending at MaxIter?** Just needs budget —
+  `--max-iter` — not a geometry change.
+- **Is the force oscillating rather than decreasing?** Step too large
+  (`--max-move`) or optimizer struggling (`--opt-method VPO`/`FIRE`).
+- **Did it kink / fold early?** Poor initial path — `--sidpp`, more `--n-images`,
+  or seed it (`--ts-guess` / `--restart-path`).
+- **Are the endpoints poorly relaxed?** Re-relax tighter
+  (`nebskill-relax --fmax 0.005`) before retrying.
 
-**`energy_smoothness.max_abs_d2`** — second derivative of energy profile:
-- < 0.3 eV: smooth — kinking is not the problem
-- 0.3–1.0 eV: mild roughness
-- > 1.0 eV: strong kinking — band is folding, not following the path
-
-**`per_image_fmax`** — force on each image:
-- High at endpoints (0 or N-1): endpoints not at true minima
-- High at one interior image: that image is stuck
-- Roughly uniform and high: too few images or wrong spring constant
-
-**`endpoint_force_ratio`** — ratio of endpoint to interior force:
-- > 2.0: re-relax endpoints before retrying
-- < 1.0: interior images are the problem
-
-**`phase`** — which phase failed:
-- Phase 1: structural problems common (kinking, collapse, too few images)
-- Phase 2 with `fmax_final` < 0.15 eV/Å: nearly converged — consider
-  more steps before making structural changes
-
-**`steps_taken`** — if close to cap and fmax nearly at target, the fix
-may simply be more steps rather than a structural change.
+A barrier that *converged but sits above the dataset* is not a convergence
+failure at all — it means the band found a higher saddle than the dataset's
+(under-resolution or a wrong basin). See `/nebskill:finding-lower-barriers`:
+more images, or seeding through the dataset TS.
 
 ---
 
@@ -77,46 +70,27 @@ already failed.
 
 | Intervention | CLI flag | When |
 |---|---|---|
-| More images | `--n-images N` | bunching/collapse, or images too far apart |
-| **Increase** spring constant | `--spring-constant 0.2` | images collapsing/bunching toward each other (low/uneven inter-image spacing); stiffer springs keep them evenly spread |
-| **Decrease** spring constant | `--spring-constant 0.05` | springs dominate and over-tension the band — a curved MEP gets pulled straight, or spring forces swamp the true forces; softer springs let images follow the valley |
-| Switch to string method | `--method string` | kinking / energy discontinuities (high `max_abs_d2`) |
-| Re-relax endpoints tighter | `nebskill-relax --fmax 0.005` then re-run | high force at endpoint images (`endpoint_force_ratio` > 2) |
+| More images | `--n-images N` | images too far apart / under-resolved (the calibrated floor is 15; some ring rearrangements need it to reach the dataset saddle) |
+| **Increase** spring constant | `--spring-constant 0.2` | images collapsing/bunching (low/uneven spacing); stiffer springs keep them spread. ORCA `SpringConst`, Eh/Bohr² |
+| **Decrease** spring constant | `--spring-constant 0.05` | springs over-tension a curved MEP and pull it straight; softer lets images follow the valley |
+| Re-relax endpoints tighter | `nebskill-relax --fmax 0.005` then re-run | high force at the endpoints |
 
-The spring constant is a two-way lever: **raise** it to fix collapse/bunching,
-**lower** it when the springs are fighting the real forces. Read the inter-image
-spacing and `per_image_fmax` to decide the direction.
-
-**Dynamical levers** (change how the optimizer moves) — reach for these when
-the band is not mis-set-up but won't settle:
-
-| Intervention | CLI flag | When |
-|---|---|---|
-| Smaller step size | `--max-step 0.05` | fmax oscillates / doesn't decrease; band rings without converging |
-| Switch optimizer to BFGS | `--optimizer BFGS` | FIRE stalling; pair with a small `--max-step` (e.g. 0.03), the dataset paper's setup |
-| Switch optimizer to ODE | `--optimizer ODE` | persistent kinking or a wandering `ts_image` that FIRE/BFGS can't settle — ASE's NEB-specialized solver, best shot at localizing a tricky saddle |
-| More iterations | `--max-steps N` | `near_convergence` / `barrier_est_ev` still falling at the cap — needs budget, not a geometry change |
-
-Prefer a dynamical lever over a structural one when `steps_taken` is at the cap
-and `fmax_final` is already low (especially phase 2) — changing the geometry
-there throws away progress.
-
-**ORCA backend.** The `--optimizer`/`--max-step`/`--method` levers above are ASE
-NEB controls and don't apply. ORCA's analogs (same reasoning, different keywords):
+**Method / optimizer levers** (ORCA's `%neb` keywords) — when the band is set up
+right but won't settle:
 
 | Intervention | ORCA flag | When |
 |---|---|---|
-| Smaller step | `--max-move 0.05` | band rings / forces oscillate (Bohr/step) |
-| Switch band optimizer | `--opt-method VPO` or `FIRE` | LBFGS stalling on a stiff/oscillating band |
+| Converge the saddle, not the whole band | `--neb-type NEB-TS` | the barrier has stabilized but the full band won't reach tolerance (tails keep oscillating); NEB-TS hands the climbing image to a TS optimizer instead of requiring every image to converge — the fix for band-tail stalls |
 | Relax convergence target | `--neb-type LOOSE-NEB-TS` | a near-converged band that won't hit the tight default |
-| Converge the saddle, not the whole band | `--neb-type NEB-TS` | the barrier has stabilized but the full band won't reach tolerance (tails keep oscillating); NEB-TS hands the climbing image to a TS optimizer instead of requiring every image to converge |
+| Switch band optimizer | `--opt-method VPO` or `FIRE` | LBFGS stalling on a stiff/oscillating band |
+| Smaller step | `--max-move 0.05` | band rings / forces oscillate (Bohr/step) |
 | More iterations | `--max-iter N` | still descending at the cap |
-| Better starting path | `--sidpp` (sequential IDPP) | phase-1-style kinking from a poor initial guess |
-| Re-relax endpoints | `nebskill-relax --fmax 0.005` then re-run | high endpoint force |
+| Better starting path | `--sidpp` (sequential IDPP) | kinking from a poor initial guess |
+| Seed / warm-start the path | `--ts-guess ts.xyz` / `--restart-path prev.allxyz` | the band keeps settling in the wrong basin — seed it through a known/likely TS or a prior MEP |
 
-(Structural levers `--n-images` and `--spring-constant` apply to ORCA unchanged.)
-On a cluster, watch ORCA's `neb.out` via the HPC agent's `fs_tail` rather than
-`nebskill-monitor` (which reads the ASE jsonl trace).
+On a cluster, watch ORCA's `neb.out` via the HPC agent's `fs_tail` (the
+per-iteration max/RMS perpendicular force and the climbing-image energy) — that
+is the live convergence signal for a native ORCA NEB.
 
 ---
 
@@ -124,8 +98,8 @@ On a cluster, watch ORCA's `neb.out` via the HPC agent's `fs_tail` rather than
 
 ```bash
 nebskill-neb --reaction-id INT \
-    [--n-images N] [--spring-constant K] [--method string] \
-    [--optimizer BFGS|ODE] [--max-step 0.05] [--max-steps N]
+    [--n-images N] [--spring-constant K] [--neb-type NEB-TS] \
+    [--opt-method VPO] [--max-move 0.05] [--max-iter N] [--sidpp]
 ```
 
 For endpoint re-relaxation:
@@ -145,7 +119,7 @@ Read `outputs/reaction_{id:04d}/neb_result.json`.
 - Not converged, attempts remaining → go back to 4.1
 - Attempts exhausted → write failure report and stop
 
-**A retry that changes a parameter** (`--n-images`, `--optimizer`, …) is a new
+**A retry that changes a parameter** (`--n-images`, `--neb-type`, …) is a new
 run: it gets its own parameter-derived attempt directory (locally and on the
 cluster), so it never clobbers the previous attempt. Plan and dispatch it like
 any other run — `nebskill-plan neb …` then the HPC agent loop

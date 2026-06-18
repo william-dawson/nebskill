@@ -1,9 +1,9 @@
 ---
 name: relaxing-endpoints
 description: >
-  Relaxes reactant and product endpoint structures with the configured
-  calculator (MACE-OFF or ORCA). Mandatory — Transition1x endpoints are not
-  local minima. Use after loading-reaction and before running-neb.
+  Relaxes reactant and product endpoint structures with native ORCA geometry
+  optimization. Mandatory — Transition1x endpoints are not local minima at our
+  level of theory. Use after loading-reaction and before running-neb.
 allowed-tools: Bash Read Write
 ---
 
@@ -42,8 +42,7 @@ Both endpoints use the same calculator instance — the model loads once.
 ```json
 {
   "formula": "C4H8O",
-  "backend": "mace",
-  "model_size": "medium",
+  "backend": "orca",
   "reactant": {
     "positions": [[...], ...],
     "energy_ev": -123.45,
@@ -57,8 +56,7 @@ Both endpoints use the same calculator instance — the model loads once.
 
 ## Notes
 
-- MACE energies differ slightly from the Transition1x DFT reference; ORCA at
-  ωB97X/6-31G(d) (the dataset's own method) reproduces it.
-- `remove_rotation_and_translation` is NOT applied here (only during NEB)
-
-References: `${CLAUDE_PLUGIN_ROOT}/references/mace_off_usage.md` (MACE backend).
+- Relaxation is a native ORCA `! Opt` at ωB97X/6-31G(d) — the dataset's own
+  method — so the relaxed endpoints sit at the same level the barrier is measured.
+- This is a real DFT job: plan it with `nebskill-plan relax` and dispatch via
+  `/nebskill:running-on-the-cluster` (or run locally on a login node).

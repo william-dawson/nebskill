@@ -19,17 +19,14 @@ vibrational frequency (the reaction coordinate), all others real.
 nebskill-frequencies --reaction-id INT
 ```
 
-At the converged NEB transition state, with MACE this is a finite-difference
-Hessian (6N+1 force evaluations) — cheap, run it directly as a local pre-check.
-With ORCA it's an analytic Hessian (! Freq), a real DFT cost: plan it with
-`nebskill-plan frequencies --reaction-id INT` and dispatch it to a compute node
-via `/nebskill:running-on-the-cluster`.
+At the converged NEB transition state, ORCA computes an analytic Hessian
+(! Freq) — a real DFT cost: plan it with `nebskill-plan frequencies
+--reaction-id INT` and dispatch it to a compute node via
+`/nebskill:running-on-the-cluster`.
 
 Options:
 - `--source dataset` — analyze the dataset's stored `transition_state` instead
   of the NEB TS (sanity check).
-- `--backend mace|orca` — MACE for a cheap pre-check, ORCA for a DFT-level
-  confirmation.
 - `--imag-cutoff 50` — cm⁻¹ below which an imaginary mode is treated as
   near-zero translational/rotational noise rather than a real saddle mode.
 
@@ -56,7 +53,7 @@ ridge from a not-quite-optimized first-order saddle.
 NEB image to the actual saddle, then a frequency calc to confirm.
 
 ```bash
-nebskill-optts --reaction-id INT --backend orca
+nebskill-optts --reaction-id INT
 ```
 
 Writes `ts_opt_orca.json` (refined TS energy, forward/reverse barrier vs the
@@ -82,7 +79,7 @@ it may roll downhill elsewhere). `nebskill-irc` settles it: it rolls downhill fr
 the optimized TS in both directions and checks the two minima it reaches.
 
 ```bash
-nebskill-irc --reaction-id INT --backend orca
+nebskill-irc --reaction-id INT
 ```
 
 Runs after `nebskill-optts` (needs `ts_opt.xyz`; reuses `ts_opt.hess` to skip
@@ -114,7 +111,7 @@ conformers. *Which* bonds/angles define this TS is chemistry you decide by
 Pass them explicitly:
 
 ```bash
-nebskill-goat --reaction-id INT --backend orca \
+nebskill-goat --reaction-id INT \
     --constrain-bond I J  [--constrain-bond K L ...] \
     [--constrain-angle I J K ...]
 ```
@@ -143,12 +140,10 @@ rigid TS there is nothing to find.
 ## Using it in a barrier claim
 
 In `/nebskill:finding-lower-barriers`, a lower barrier only counts if its TS is
-a real saddle. Use MACE first as a cheap filter, then confirm the survivor with
-ORCA:
+a real saddle — confirm it:
 
 ```bash
-nebskill-frequencies --reaction-id INT --backend mace    # cheap pre-check
-nebskill-frequencies --reaction-id INT --backend orca    # DFT confirmation
+nebskill-frequencies --reaction-id INT
 ```
 
 If the verdict is `minimum` or `higher_order_saddle`, the "lower barrier" is not
