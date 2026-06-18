@@ -1,6 +1,6 @@
 [project]
 name = "nebskill"
-version = "0.28.0"
+version = "0.29.0"
 description = "Nudged Elastic Band calculations for reaction barriers using MACE-OFF / ORCA and Transition1x"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -24,6 +24,7 @@ mace = ["mace-torch>=0.3"]
 [project.scripts]
 nebskill-download = "nebskill.download:main"
 nebskill-load     = "nebskill.load:main"
+nebskill-sample   = "nebskill.sample:main"
 nebskill-relax    = "nebskill.relax:main"
 nebskill-neb      = "nebskill.neb:main"
 nebskill-plan     = "nebskill.plan:main"
