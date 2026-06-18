@@ -20,7 +20,6 @@ import random
 import sys
 from pathlib import Path
 
-import h5py
 import numpy as np
 from ase import Atoms
 
@@ -28,9 +27,14 @@ from nebskill.config import load_config
 
 _POS_DECIMALS = 6
 
+_DATASET_HINT = ("nebskill-build-cache needs the dataset tooling (h5py). Install "
+                 "the extra: `uv pip install 'nebskill[dataset]'`. Normal use reads "
+                 "the bundled cache and needs none of this.")
+
 
 def build_reaction_index(h5_path: Path, split: str = "data") -> list:
     """Flat list of (split, formula, rxn_key) — reaction_id indexes into it."""
+    import h5py
     index = []
     with h5py.File(h5_path, "r") as f:
         for formula in sorted(f[split].keys()):
@@ -44,6 +48,7 @@ def _scalar_energy(dataset) -> float:
 
 
 def load_reaction(h5_path: Path, split: str, formula: str, rxn_key: str) -> dict:
+    import h5py
     with h5py.File(h5_path, "r") as f:
         rxn = f[split][formula][rxn_key]
         atomic_numbers = rxn["atomic_numbers"][:].astype(int)
@@ -94,6 +99,12 @@ def build_reaction(data: dict, reaction_id: int, rxn_key: str,
 
 
 def main():
+    try:
+        import h5py  # noqa: F401
+    except ImportError:
+        print(f"ERROR: {_DATASET_HINT}", file=sys.stderr)
+        sys.exit(1)
+
     p = argparse.ArgumentParser(
         description="Build the bundled reaction cache from the Transition1x HDF5")
     p.add_argument("--n", type=int, default=1000)

@@ -1,18 +1,21 @@
 [project]
 name = "nebskill"
-version = "0.32.0"
+version = "0.33.0"
 description = "Nudged Elastic Band reaction-barrier calculations with native ORCA on the Transition1x dataset"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "ase>=3.23",
-    "h5py>=3.10",
-    "requests>=2.31",
-    "tqdm>=4.66",
     "pyyaml>=6.0",
     "matplotlib>=3.8",
     "numpy>=1.26",
 ]
+
+# Only needed to (re)build the reaction cache from the full Transition1x HDF5
+# (nebskill-build-cache / nebskill-download). Normal use reads the bundled cache
+# and needs none of this — install `nebskill[dataset]` only to regenerate.
+[project.optional-dependencies]
+dataset = ["h5py>=3.10", "requests>=2.31", "tqdm>=4.66"]
 
 [project.scripts]
 nebskill-download = "nebskill.download:main"

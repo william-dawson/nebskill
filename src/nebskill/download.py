@@ -1,50 +1,56 @@
-"""Auto-download Transition1x.h5 with resume support."""
+"""Auto-download Transition1x.h5."""
 import argparse
-import sys
 from pathlib import Path
-
-import requests
-from tqdm import tqdm
 
 URL           = "https://ndownloader.figshare.com/files/36035789"
 EXPECTED_SIZE = 6_600_000_000  # ~6.2 GB
 
 
 def download(dest: Path) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    existing = dest.stat().st_size if dest.exists() else 0
+    try:
+        import requests
+        from tqdm import tqdm
+    except ImportError as e:
+        raise ImportError(
+            "nebskill-download needs the dataset tooling (requests, tqdm). "
+            "Install the extra: `uv pip install 'nebskill[dataset]'`. Normal use "
+            "reads the bundled cache and needs neither the download nor this."
+        ) from e
 
-    if existing >= EXPECTED_SIZE:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists() and dest.stat().st_size >= EXPECTED_SIZE:
+        existing = dest.stat().st_size
         print(f"Dataset already present at {dest} ({existing / 1e9:.1f} GB)")
         return
 
-    headers = {"Range": f"bytes={existing}-"} if existing else {}
-    mode    = "ab" if existing else "wb"
-
     print(f"Downloading Transition1x dataset to {dest}")
-    if existing:
-        print(f"  Resuming from {existing / 1e9:.1f} GB")
 
-    resp = requests.get(URL, headers=headers, stream=True, timeout=60)
+    resp = requests.get(URL, stream=True, timeout=60)
     resp.raise_for_status()
 
-    total = int(resp.headers.get("content-length", 0)) + existing
-    with open(dest, mode) as f, tqdm(
-        total=total, initial=existing, unit="B", unit_scale=True, unit_divisor=1024
+    total = int(resp.headers.get("content-length", 0))
+    with open(dest, "wb") as f, tqdm(
+        total=total or None, unit="B", unit_scale=True, unit_divisor=1024
     ) as bar:
         for chunk in resp.iter_content(chunk_size=1 << 20):
-            f.write(chunk)
-            bar.update(len(chunk))
+            if chunk:
+                f.write(chunk)
+                bar.update(len(chunk))
 
     print(f"Download complete: {dest}")
 
 
 def main():
+    import sys
     parser = argparse.ArgumentParser(description="Download Transition1x dataset")
     parser.add_argument("--dest", default="data/Transition1x.h5",
                         help="Destination path (default: data/Transition1x.h5)")
     args = parser.parse_args()
-    download(Path(args.dest))
+    try:
+        download(Path(args.dest))
+    except ImportError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -104,7 +104,8 @@ requires-python = ">=3.12"
 dependencies = ["nebskill @ git+https://github.com/william-dawson/nebskill.git"]
 ```
 
-nebskill's dependencies are light (ASE, h5py, numpy — no PyTorch). ORCA itself is
+nebskill's dependencies are light (ASE, numpy, matplotlib — no PyTorch, and the
+reaction data ships as a bundled cache so no dataset download). ORCA itself is
 the cluster binary captured in step 2, not a pip package.
 
 **Always set these before any `uv sync`** (HPC process caps break uv otherwise):
