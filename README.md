@@ -41,12 +41,14 @@ through it).
 
 ## Baseline Usage
 
-Just ask Claude in plain language, for example:
+Once your machine is configured (`/nebskill:configuring-machine`), the quickest
+start is to **try out the demo skill** — it runs one reaction end-to-end and
+reproduces its published barrier, confirming the pipeline works:
 
-> I would like to do an NEB calculation
+> /nebskill:demo
 
-The skill activates automatically. You can also ask about reaction barriers,
-transition states, or minimum energy paths, or invoke a step directly.
+From there, just ask Claude in plain language (reaction barriers, transition
+states, minimum energy paths) or invoke any step directly.
 
 ## Reproduction studies
 
@@ -70,6 +72,9 @@ The skills run in pipeline order:
 
 - **`/nebskill:configuring-machine`** — one-time setup: capture the cluster's
   ORCA recipe, install/connect the companion HPC agent, and `uv` install.
+- **`/nebskill:demo`** — run one reaction end-to-end (load → relax → NEB →
+  analyze) to see the pipeline work and reproduce a published barrier. Best
+  starting point after setup.
 - **`/nebskill:loading-reaction`** — load a reaction from Transition1x and
   extract NEB endpoints.
 - **`/nebskill:relaxing-endpoints`** — relax reactant and product with ORCA.

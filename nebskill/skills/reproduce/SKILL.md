@@ -41,11 +41,11 @@ barrier yourself and reach one of:
 - **Lower** — you find a barrier meaningfully *below* the reference. Done, **but a
   lower number is worthless without an explanation.** A lower barrier only counts
   if you can defend it: is it a genuine transition state (OptTS → one imaginary
-  mode)? Does that imaginary mode point along the bonds **this** reaction changes,
-  i.e. is it the saddle for the *same* reaction rather than some other process?
-  State your conclusion (e.g. "the reference is conservative — here is a lower,
-  validated saddle for the same reaction" vs "this lower saddle's mode is a
-  different process and does not count").
+  mode)? Does it connect the **same** reactant and product (IRC), or a different
+  pair? Is it a better saddle for the *same* reaction, or actually a *different*
+  reaction? State your conclusion (e.g. "the reference is conservative — here is a
+  lower, IRC-validated saddle for the same reaction" vs "this saddle's IRC lands on
+  a different pair and does not count").
 - **Higher / not matched yet** — not done. Find out *why* you fell short and
   change your approach. Keep working it.
 
@@ -80,9 +80,10 @@ Work with the **core barrier toolkit** and nothing fancier:
 - **NEB** — find the reaction path and barrier (the **NEB-CI** variant by default;
   other NEB convergence variants are fine for a band that won't settle).
 - **OptTS** — refine the transition state to a true first-order saddle.
-- **Hessian / frequency analysis** — confirm the saddle (one imaginary mode) and,
-  for a claimed lower barrier, check that the imaginary mode points along the bonds
-  this reaction actually changes.
+- **Hessian / frequency analysis** — confirm the saddle (one imaginary mode).
+- **IRC** — follow the saddle downhill both ways to confirm it connects the
+  **same** reactant and product this reaction is about (the rigorous connectivity
+  check, especially before claiming a lower barrier).
 
 (Plus the obvious prerequisites — loading a reaction and relaxing its endpoints.)
 
@@ -107,7 +108,7 @@ scored against the truth by `nebskill-grade`:
   {"reaction_id": 1234, "status": "matched", "barrier_ev": 3.512,
    "attempts": ["...what you tried and why..."], "explanation": ""},
   {"reaction_id": 1240, "status": "lower", "barrier_ev": 2.10,
-   "explanation": "OptTS gives one imaginary mode along the breaking C-O / forming C-N bonds of this reaction; ..."}
+   "explanation": "OptTS gives one imaginary mode; IRC connects the stated reactant and product; ..."}
 ]}
 ```
 
