@@ -369,7 +369,7 @@ def main():
         }
         _write_neb_result(out_dir, latest, n_images,
                           params.get("neb_type", "NEB-CI"), orca_k,
-                          relaxed["dft_forward_barrier_ev"],
+                          relaxed.get("dft_forward_barrier_ev"),
                           optimizer=params.get("opt_method", "LBFGS"))
         if not res["converged"]:
             print("ORCA NEB did not converge — triggering retry (step 4)")
@@ -417,7 +417,7 @@ def main():
 
     if not result1["converged"]:
         _write_neb_result(out_dir, result1, n_images, method, k,
-                          relaxed["dft_forward_barrier_ev"],
+                          relaxed.get("dft_forward_barrier_ev"),
                           optimizer=optimizer, max_step=max_step)
         print("Phase 1 did not converge — triggering retry (step 4)")
         sys.exit(4)
@@ -432,7 +432,7 @@ def main():
                         optimizer=optimizer, max_step=max_step)
 
     _write_neb_result(out_dir, result2, n_images, method, k,
-                      relaxed["dft_forward_barrier_ev"],
+                      relaxed.get("dft_forward_barrier_ev"),
                       optimizer=optimizer, max_step=max_step,
                       phase1_result=result1)
 

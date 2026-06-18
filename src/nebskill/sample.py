@@ -40,6 +40,10 @@ def main():
     p.add_argument("--output-dir", required=True)
     p.add_argument("--match-tolerance-ev", type=float, default=0.05,
                    help="|ours-ref| <= this counts as reproduced")
+    p.add_argument("--blind", action="store_true",
+                   help="Omit reference barriers from the agent-facing package "
+                        "(experiment B). The true barriers still go to "
+                        "answer_key.json for grading — the agent must not read it.")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -57,7 +61,10 @@ def main():
 
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    manifest = []
+    manifest = []      # agent-facing (no references if --blind)
+    answer_key = []    # grader oracle (always has the true references)
+    # In blind mode the agent-facing data drops the reference barriers.
+    drop = {"dft_forward_barrier_ev", "dft_reverse_barrier_ev"} if args.blind else set()
     for rid in order:
         if len(manifest) >= args.n:
             break
@@ -70,10 +77,14 @@ def main():
             continue          # below the min-barrier filter — skip, draw another
         rdir = out / f"r{rid}"
         rdir.mkdir(exist_ok=True)
-        lean = {k: full[k] for k in _KEEP if k in full}
+        lean = {k: full[k] for k in _KEEP if k in full and k not in drop}
         (rdir / "endpoints.json").write_text(json.dumps(lean, indent=2))
-        manifest.append({"reaction_id": rid, "formula": full["formula"],
-                         "reference_barrier_ev": full["dft_forward_barrier_ev"]})
+        entry = {"reaction_id": rid, "formula": full["formula"]}
+        if not args.blind:
+            entry["reference_barrier_ev"] = full["dft_forward_barrier_ev"]
+        manifest.append(entry)
+        answer_key.append({"reaction_id": rid, "formula": full["formula"],
+                           "reference_barrier_ev": full["dft_forward_barrier_ev"]})
         if len(manifest) % 100 == 0:
             print(f"  packaged {len(manifest)}/{args.n}")
 
@@ -81,14 +92,20 @@ def main():
         print(f"WARNING: only {len(manifest)} reactions passed the filter "
               f"(wanted {args.n})", file=sys.stderr)
 
-    (out / "manifest.json").write_text(json.dumps({
+    meta = {
         "study": "reproduce",
+        "mode": "blind" if args.blind else "open",
         "n": len(manifest),
         "seed": args.seed,
         "match_tolerance_ev": args.match_tolerance_ev,
         "level_of_theory": "wB97X/6-31G(d)",
-        "reactions": manifest,
-    }, indent=2))
+    }
+    (out / "manifest.json").write_text(json.dumps(
+        {**meta, "reactions": manifest}, indent=2))
+    # Grader oracle — always written, even in blind mode. The /reproduce skill
+    # tells a blind-mode agent not to read this file.
+    (out / "answer_key.json").write_text(json.dumps(
+        {**meta, "reactions": answer_key}, indent=2))
     print(f"Wrote {len(manifest)} reactions to {out}/ "
           f"(manifest.json + r<id>/endpoints.json)")
     Path(out / "SAMPLE_DONE").write_text(f"{len(manifest)}\n")

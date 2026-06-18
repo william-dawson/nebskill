@@ -158,8 +158,8 @@ def main():
         "reaction_id":            endpoints["reaction_id"],
         "formula":                endpoints["formula"],
         "rxn_key":                endpoints["rxn_key"],
-        "dft_forward_barrier_ev": endpoints["dft_forward_barrier_ev"],
-        "dft_reverse_barrier_ev": endpoints["dft_reverse_barrier_ev"],
+        "dft_forward_barrier_ev": endpoints.get("dft_forward_barrier_ev"),
+        "dft_reverse_barrier_ev": endpoints.get("dft_reverse_barrier_ev"),
         "backend":                cfg["calculator"].get("backend", "mace"),
         "model_size":             cfg["calculator"].get("model_size"),
         "reactant":               results["reactant"],
@@ -173,7 +173,9 @@ def main():
     print(f"\nRelaxed energies ({backend}):")
     print(f"  Reactant: {results['reactant']['energy_ev']:.4f} eV")
     print(f"  Product:  {results['product']['energy_ev']:.4f} eV")
-    print(f"  DFT forward barrier reference: {endpoints['dft_forward_barrier_ev']:.3f} eV")
+    _ref = endpoints.get("dft_forward_barrier_ev")
+    print(f"  DFT forward barrier reference: "
+          f"{f'{_ref:.3f} eV' if _ref is not None else 'n/a (blind)'}")
     print(f"Relaxed endpoints written to {out_path}")
 
 
