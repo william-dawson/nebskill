@@ -48,26 +48,41 @@ def effective_backend(cli_backend: str | None) -> str:
     return "orca"
 
 
-def attempt_name(backend: str, *, optimizer=None, n_images=None,
-                 spring_constant=None, method=None, max_step=None,
-                 max_steps=None, seeded=False, extra=None) -> str:
-    """Deterministic, readable attempt directory name from the parameters.
-    Identical parameters → identical name (reused); any difference → new dir.
-    `extra` carries backend-specific distinguishing tokens (e.g. ORCA's
-    neb-type / optimizer) so those param sweeps also get their own directory."""
+def attempt_name(backend: str, *, n_images=None, spring_constant=None,
+                 orca: dict | None = None) -> str:
+    """Deterministic, readable attempt directory name from the run parameters.
+    Identical parameters → identical name (reused); any difference that changes
+    the calculation → a new directory, so parameter sweeps never clobber.
+
+    Covers every ORCA NEB lever the agent can set (neb_type, optimizer,
+    interpolation, max_move, max_iter, spring constants, sidpp, energy-weighting,
+    free-end, and whether the path was seeded) — each non-default value adds a
+    short token. Two runs that differ in *any* of these get distinct directories.
+    Note: two different seed files (ts_guess / restart_path) both reduce to the
+    `seeded` token; pass an explicit `--tag` to keep those apart."""
     parts = [backend]
-    if optimizer and str(optimizer).upper() != "FIRE":
-        parts.append(str(optimizer).lower())
-    if method and method != "improvedtangent":
-        parts.append(str(method))
     if n_images:        parts.append(f"n{n_images}")
     if spring_constant: parts.append(f"k{spring_constant}")
-    if max_step:        parts.append(f"s{max_step}")
-    if max_steps:       parts.append(f"i{max_steps}")
-    if seeded:          parts.append("seeded")
-    for tok in (extra or []):
-        if tok:
-            parts.append(str(tok).lower().replace("-", "").replace(" ", ""))
+
+    o = orca or {}
+    nt = o.get("neb_type")
+    if nt and str(nt).upper() != "NEB-CI":
+        parts.append(str(nt).lower().replace("-", ""))
+    om = o.get("opt_method")
+    if om and str(om).upper() != "LBFGS":
+        parts.append(str(om).lower())
+    interp = o.get("interpolation")
+    if interp and str(interp).upper() != "IDPP":
+        parts.append(str(interp).lower())
+    if o.get("max_move"):         parts.append(f"mv{o['max_move']}")
+    if o.get("max_iter"):         parts.append(f"it{o['max_iter']}")
+    if o.get("spring_constant2"): parts.append(f"k2{o['spring_constant2']}")
+    if o.get("sidpp"):            parts.append("sidpp")
+    if o.get("free_end"):         parts.append("freeend")
+    if o.get("energy_weighted") is False:
+        parts.append("noew")
+    if o.get("ts_guess") or o.get("restart_path"):
+        parts.append("seeded")
     return "_".join(parts)
 
 

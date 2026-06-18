@@ -181,12 +181,11 @@ def prepare_neb(reaction_id: int, output_dir: str | None = None, *,
                 orca: dict | None = None) -> JobPlan:
     backend_eff = effective_backend(backend)
     root = reaction_root(reaction_id, output_dir)
-    # ORCA param sweeps (neb-type, opt-method) get their own attempt dir too.
-    extra = [(orca or {}).get("neb_type"), (orca or {}).get("opt_method")] \
-        if orca else None
+    # Every ORCA lever feeds the attempt name, so any parameter sweep lands in its
+    # own directory and never clobbers a sibling.
     attempt = tag or attempt_name(
         backend_eff, n_images=n_images, spring_constant=spring_constant,
-        seeded=bool((orca or {}).get("restart_path")), extra=extra)
+        orca=orca)
     out_dir = root / attempt
     out_dir.mkdir(parents=True, exist_ok=True)
     write_latest(root, attempt)   # downstream commands target this attempt

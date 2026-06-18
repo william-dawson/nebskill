@@ -53,4 +53,3 @@ neb:
 
 filter:
   min_barrier_ev: 0.1         # skip reactions with barrier below this
-  min_segment_frames: 2       # min frames on each side of TS
