@@ -1,0 +1,33 @@
+{
+  "name": "nebskill",
+  "version": "0.34.0",
+  "description": "Nudged Elastic Band reaction-barrier calculations on organic molecules using the Transition1x dataset, powered by native ORCA (Opt / NEB-CI / NEB-TS / OptTS / Freq / IRC / GOAT at wB97X/6-31G(d)). Requires uv; Python dependencies install automatically. Cluster jobs run via a companion HPC agent plugin (Rikyu/Hokusai).",
+  "author": {
+    "name": "william-dawson"
+  },
+  "repository": "https://github.com/william-dawson/nebskill",
+  "keywords": [
+    "computational-chemistry",
+    "NEB",
+    "ORCA",
+    "DFT",
+    "reaction-barriers",
+    "transition-states",
+    "molecular-simulation",
+    "transition1x"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "NEB Skill",
+    "shortDescription": "Find reaction barriers and minimum energy paths with ORCA NEB-CI/NEB-TS.",
+    "longDescription": "Run Nudged Elastic Band calculations on organic molecules from the Transition1x dataset. Sources reaction geometries from a bundled cache, relaxes endpoints with ORCA Opt, finds the minimum energy path and barrier with NEB-CI or NEB-TS, optionally refines the transition state with OptTS + IRC + GOAT, and compares against published DFT references. Heavy steps dispatch to an HPC cluster via a companion Hokusai or Rikyu agent plugin.",
+    "developerName": "william-dawson",
+    "category": "Research",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Run the NEB demo to check my machine is set up.",
+      "Find the reaction barrier for reaction 42.",
+      "Run a reproduction study on my sampled reaction set."
+    ]
+  }
+}

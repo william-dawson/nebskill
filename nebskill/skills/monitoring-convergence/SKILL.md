@@ -8,6 +8,25 @@ description: >
 allowed-tools: Bash Read Write
 ---
 
+## Prerequisites
+
+Only enter this skill when `nebskill-neb` exits with code 4. The package and
+ORCA recipe must already be in place (this skill is entered from **running-neb**,
+which checks them). If you arrive here independently, verify:
+
+```bash
+nebskill-load --help && ls neb_local.yaml
+```
+Either missing → run the **configuring-machine** skill first.
+
+Also verify the NEB output exists:
+```bash
+ls outputs/reaction_$(printf '%04d' REACTION_ID)/neb_result.json
+```
+If absent, the NEB hasn't run yet — go to **running-neb** instead.
+
+---
+
 Only enter this step if `nebskill-neb` exited with code 4. You drive the
 retry loop: read neb.out → reason → intervene → re-run → repeat.
 

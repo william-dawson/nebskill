@@ -36,18 +36,42 @@ Background reading available in `${CLAUDE_PLUGIN_ROOT}/references/`:
 
 ## Step 0 — Check prerequisites
 
-Before doing anything else, verify the environment is ready.
+Before doing anything else, run these checks in order. Stop at the first failure
+and address it before continuing.
 
-### Is setup complete?
+### 1. Package installed
 
-Check whether the nebskill commands are installed:
 ```bash
 nebskill-load --help
 ```
+If the command is not found, nebskill has not been installed. Tell the user:
+> "The nebskill package isn't installed yet. Run the **configuring-machine** skill first."
+Stop. Do not proceed until this passes.
 
-If the command is not found, the package has not been installed. Tell the user:
-> "The nebskill package isn't installed yet. Run `/nebskill:configuring-machine` first."
-Stop and do not proceed until setup is complete.
+### 2. ORCA recipe configured
+
+```bash
+ls neb_local.yaml
+```
+If `neb_local.yaml` is absent from the working directory, the ORCA binary path
+and MPI settings haven't been captured yet. Tell the user:
+> "No neb_local.yaml found. Run the **configuring-machine** skill to set up the ORCA recipe."
+Stop.
+
+### 3. Running mode
+
+```bash
+cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
+```
+- **File present**: note `hpc_agent` (hokusai / rikyu) and `remote_project_dir`.
+  Compute steps will dispatch to the cluster through that HPC agent.
+- **File absent**: local mode — ORCA runs on this machine, all steps run
+  in-process.
+
+If cluster mode, verify the HPC agent is reachable by calling its
+`get_facility()` MCP tool. If it errors, tell the user:
+> "The HPC agent isn't responding. Re-run the **configuring-machine** skill to reconnect."
+Stop.
 
 ### Reaction data
 

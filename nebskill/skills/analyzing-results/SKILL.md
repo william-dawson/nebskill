@@ -7,6 +7,23 @@ description: >
 allowed-tools: Bash Read Write
 ---
 
+## Prerequisites
+
+**Package installed**
+```bash
+nebskill-load --help
+```
+Not found → stop. Run the **configuring-machine** skill first.
+
+**NEB result present**
+```bash
+ls outputs/reaction_$(printf '%04d' REACTION_ID)/neb_result.json
+```
+Missing → the NEB hasn't run (or hasn't been downloaded from the cluster yet).
+Run the **running-neb** skill first, or fetch results via the HPC agent.
+
+---
+
 Produces all output artifacts from a converged NEB and summarises the results.
 
 ## Scripts

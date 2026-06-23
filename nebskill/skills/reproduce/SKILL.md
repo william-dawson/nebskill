@@ -7,6 +7,40 @@ description: >
   the reproduce study / reproduction campaign over a sampled reaction set.
 ---
 
+## Prerequisites
+
+Run these checks before starting the study. Stop at the first failure.
+
+**1. Package installed**
+```bash
+nebskill-load --help
+```
+Not found → stop. Run the **configuring-machine** skill first.
+
+**2. ORCA recipe configured**
+```bash
+ls neb_local.yaml
+```
+Missing → stop. Run **configuring-machine** (ORCA binary and MPI settings not
+yet captured — every reaction in the study needs them).
+
+**3. Running mode**
+```bash
+cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
+```
+- Present → cluster mode; call the HPC agent's `get_facility()` to confirm it's
+  reachable. If it errors → stop, re-run **configuring-machine**.
+- Absent → local mode.
+
+**4. Study data present**
+```bash
+ls study/reproduce_set/manifest.json 2>/dev/null || echo "(not found)"
+```
+If missing, the reproduction package hasn't been staged yet. Ask the user where
+the study directory is, or run `nebskill-sample` to generate one.
+
+---
+
 You are running a reproduction study. This skill gives you the **data**, the
 **goal**, and **when to stop** — and deliberately nothing about *how*. Working out
 the method, and the persistence to make every reaction come out right, is the

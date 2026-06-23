@@ -7,6 +7,40 @@ description: >
 allowed-tools: Bash Read Write
 ---
 
+## Prerequisites
+
+Run these checks in order. Stop at the first failure.
+
+**1. Package installed**
+```bash
+nebskill-load --help
+```
+Not found → stop. Run the **configuring-machine** skill.
+
+**2. ORCA recipe configured**
+```bash
+ls neb_local.yaml
+```
+Missing → stop. Run the **configuring-machine** skill (ORCA binary and MPI
+settings not yet captured).
+
+**3. Running mode**
+```bash
+cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
+```
+- Present (`hpc_agent` + `remote_project_dir`) → cluster mode. Verify the HPC
+  agent by calling `get_facility()`. If it errors → stop, re-run
+  **configuring-machine**.
+- Absent → local mode; ORCA must be accessible on this machine.
+
+**4. Reaction loaded**
+```bash
+ls outputs/reaction_$(printf '%04d' REACTION_ID)/endpoints.json
+```
+Missing → run the **loading-reaction** skill first.
+
+---
+
 Geometrically relaxes both endpoint structures with the configured calculator.
 This step is mandatory — MD snapshots from Transition1x are not at local minima
 and will cause poor NEB convergence if used directly. The relaxed minimum is

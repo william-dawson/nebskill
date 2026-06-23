@@ -7,6 +7,38 @@ description: >
 allowed-tools: Bash Read Write
 ---
 
+## Prerequisites
+
+Run these checks in order. Stop at the first failure.
+
+**1. Package installed**
+```bash
+nebskill-load --help
+```
+Not found → stop. Run the **configuring-machine** skill.
+
+**2. ORCA recipe configured**
+```bash
+ls neb_local.yaml
+```
+Missing → stop. Run the **configuring-machine** skill.
+
+**3. Running mode**
+```bash
+cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
+```
+- Present → cluster mode; call the HPC agent's `get_facility()` to confirm it's
+  reachable. If it errors → stop, re-run **configuring-machine**.
+- Absent → local mode.
+
+**4. Endpoints relaxed**
+```bash
+ls outputs/reaction_$(printf '%04d' REACTION_ID)/relaxed_endpoints.json
+```
+Missing → run the **relaxing-endpoints** skill first.
+
+---
+
 Finds the minimum energy path between the relaxed endpoints with a single native
 ORCA NEB job (ORCA's own band optimizer) — the method that generated
 Transition1x. Default variant is **NEB-CI**; **NEB-TS** hands the climbing image

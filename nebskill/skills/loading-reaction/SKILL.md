@@ -7,6 +7,16 @@ description: >
 allowed-tools: Bash Read Write
 ---
 
+## Prerequisites
+
+```bash
+nebskill-load --help
+```
+If the command is not found, nebskill is not installed — stop and run the
+**configuring-machine** skill first.
+
+---
+
 nebskill ships a small **cache** of ~1000 reactions (reactant, product, and
 transition-state geometries plus the reference barriers — a few MB). The skills
 read it directly, so there is **no 6.2 GB dataset download**.

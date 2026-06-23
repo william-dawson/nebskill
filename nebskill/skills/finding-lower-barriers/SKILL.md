@@ -10,6 +10,32 @@ description: >
 allowed-tools: Bash Read Write
 ---
 
+## Prerequisites
+
+Run these checks before starting. Stop at the first failure.
+
+**1. Package installed**
+```bash
+nebskill-load --help
+```
+Not found → stop. Run the **configuring-machine** skill first.
+
+**2. ORCA recipe configured**
+```bash
+ls neb_local.yaml
+```
+Missing → stop. Run **configuring-machine**.
+
+**3. Running mode**
+```bash
+cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
+```
+- Present → cluster mode; call the HPC agent's `get_facility()` to confirm it's
+  reachable. If it errors → stop, re-run **configuring-machine**.
+- Absent → local mode.
+
+---
+
 ## Premise
 
 Assume the dataset's DFT is correct. The suspected flaw is narrower: their NEB

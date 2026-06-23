@@ -9,6 +9,36 @@ description: >
 allowed-tools: Bash Read Write
 ---
 
+## Prerequisites
+
+Run these checks before dispatching any job. Stop at the first failure.
+
+**1. Package installed**
+```bash
+nebskill-load --help
+```
+Not found → stop. Run the **configuring-machine** skill first.
+
+**2. ORCA recipe and cluster config present**
+```bash
+ls neb_local.yaml nebskill_cluster.yaml
+```
+Either missing → stop. Run **configuring-machine** (ORCA recipe not captured or
+cluster mode not configured). If you only have `neb_local.yaml` and not
+`nebskill_cluster.yaml`, the machine was set up in local mode — either re-run
+**configuring-machine** in cluster mode, or run jobs locally instead.
+
+**3. HPC agent reachable**
+Read `hpc_agent` from `nebskill_cluster.yaml`, then call that agent's
+`get_facility()` MCP tool. If it errors → stop; re-run **configuring-machine**
+to reconnect.
+
+> **Codex note**: The HPC agent's MCP tools (`submit_job`, `fs_upload`, etc.)
+> are available by the same names in both Claude Code and Codex once the plugin
+> is installed. The workflow below is identical in both clients.
+
+---
+
 ## The model: two plugins, one job
 
 nebskill knows the **chemistry** — what command to run, which files it needs,
@@ -18,10 +48,6 @@ account, partition, modules, and the transport. You glue them together per step.
 `nebskill-plan` emits the chemistry half as JSON; you map it onto the agent's
 MCP tools. Cheap steps (`load`, `analyze`, `summary`, `plot`, `diagnose`) just
 run locally — only `relax`, `neb`, `frequencies` go through this loop.
-
-Prereqs: `/nebskill:configuring-machine` has been run (backend chosen, HPC agent
-installed + connected, nebskill installed on the cluster, `nebskill_cluster.yaml`
-written with `remote_project_dir`).
 
 ## The loop (per compute step)
 

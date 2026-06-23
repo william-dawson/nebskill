@@ -9,6 +9,38 @@ description: >
 allowed-tools: Bash Read Write
 ---
 
+## Prerequisites
+
+Run these checks in order. Stop at the first failure.
+
+**1. Package installed**
+```bash
+nebskill-load --help
+```
+Not found → stop. Run the **configuring-machine** skill.
+
+**2. ORCA recipe configured**
+```bash
+ls neb_local.yaml
+```
+Missing → stop. Run the **configuring-machine** skill.
+
+**3. Running mode**
+```bash
+cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
+```
+- Present → cluster mode; call the HPC agent's `get_facility()` to confirm it's
+  reachable. If it errors → stop, re-run **configuring-machine**.
+- Absent → local mode.
+
+**4. Converged NEB result**
+```bash
+ls outputs/reaction_$(printf '%04d' REACTION_ID)/neb_result.json
+```
+Missing → run **running-neb** first (and confirm it converged — exit code 0).
+
+---
+
 A NEB gives the highest-energy point on a path, but that is only a true
 transition state if it is a **first-order saddle**: exactly one imaginary
 vibrational frequency (the reaction coordinate), all others real.
