@@ -15,13 +15,13 @@ Run these checks in order. Stop at the first failure.
 ```bash
 nebskill-load --help
 ```
-Not found → stop. Run the **configuring-machine** skill.
+Not found → stop. Run the **nebskill-configuring-machine** skill.
 
 **2. ORCA recipe configured**
 ```bash
 ls neb_local.yaml
 ```
-Missing → stop. Run the **configuring-machine** skill (ORCA binary and MPI
+Missing → stop. Run the **nebskill-configuring-machine** skill (ORCA binary and MPI
 settings not yet captured).
 
 **3. Running mode**
@@ -30,7 +30,7 @@ cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
 ```
 - Present (`hpc_agent` + `remote_project_dir`) → cluster mode. Verify the HPC
   agent by calling `get_facility()`. If it errors → stop, re-run
-  **configuring-machine**.
+  **nebskill-configuring-machine**.
 - Absent → local mode; ORCA must be accessible on this machine.
 
 **4. Reaction loaded**

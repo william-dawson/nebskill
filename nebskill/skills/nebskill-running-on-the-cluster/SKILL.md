@@ -17,20 +17,20 @@ Run these checks before dispatching any job. Stop at the first failure.
 ```bash
 nebskill-load --help
 ```
-Not found → stop. Run the **configuring-machine** skill first.
+Not found → stop. Run the **nebskill-configuring-machine** skill first.
 
 **2. ORCA recipe and cluster config present**
 ```bash
 ls neb_local.yaml nebskill_cluster.yaml
 ```
-Either missing → stop. Run **configuring-machine** (ORCA recipe not captured or
+Either missing → stop. Run **nebskill-configuring-machine** (ORCA recipe not captured or
 cluster mode not configured). If you only have `neb_local.yaml` and not
 `nebskill_cluster.yaml`, the machine was set up in local mode — either re-run
-**configuring-machine** in cluster mode, or run jobs locally instead.
+**nebskill-configuring-machine** in cluster mode, or run jobs locally instead.
 
 **3. HPC agent reachable**
 Read `hpc_agent` from `nebskill_cluster.yaml`, then call that agent's
-`get_facility()` MCP tool. If it errors → stop; re-run **configuring-machine**
+`get_facility()` MCP tool. If it errors → stop; re-run **nebskill-configuring-machine**
 to reconnect.
 
 > **Codex note**: The HPC agent's MCP tools (`submit_job`, `fs_upload`, etc.)

@@ -13,7 +13,7 @@ allowed-tools: Bash Read Write
 nebskill-load --help
 ```
 If the command is not found, nebskill is not installed — stop and run the
-**configuring-machine** skill first.
+**nebskill-configuring-machine** skill first.
 
 ---
 

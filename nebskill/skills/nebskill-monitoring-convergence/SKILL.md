@@ -17,7 +17,7 @@ which checks them). If you arrive here independently, verify:
 ```bash
 nebskill-load --help && ls neb_local.yaml
 ```
-Either missing → run the **configuring-machine** skill first.
+Either missing → run the **nebskill-configuring-machine** skill first.
 
 Also verify the NEB output exists:
 ```bash

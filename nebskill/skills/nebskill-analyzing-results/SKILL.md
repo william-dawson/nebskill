@@ -13,7 +13,7 @@ allowed-tools: Bash Read Write
 ```bash
 nebskill-load --help
 ```
-Not found → stop. Run the **configuring-machine** skill first.
+Not found → stop. Run the **nebskill-configuring-machine** skill first.
 
 **NEB result present**
 ```bash

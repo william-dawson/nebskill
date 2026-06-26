@@ -17,20 +17,20 @@ Run these checks in order. Stop at the first failure.
 ```bash
 nebskill-load --help
 ```
-Not found → stop. Run the **configuring-machine** skill.
+Not found → stop. Run the **nebskill-configuring-machine** skill.
 
 **2. ORCA recipe configured**
 ```bash
 ls neb_local.yaml
 ```
-Missing → stop. Run the **configuring-machine** skill.
+Missing → stop. Run the **nebskill-configuring-machine** skill.
 
 **3. Running mode**
 ```bash
 cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
 ```
 - Present → cluster mode; call the HPC agent's `get_facility()` to confirm it's
-  reachable. If it errors → stop, re-run **configuring-machine**.
+  reachable. If it errors → stop, re-run **nebskill-configuring-machine**.
 - Absent → local mode.
 
 **4. Converged NEB result**

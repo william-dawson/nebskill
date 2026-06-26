@@ -44,7 +44,7 @@ and address it before continuing.
 nebskill-load --help
 ```
 If the command is not found, nebskill has not been installed. Tell the user:
-> "The nebskill package isn't installed yet. Run the **configuring-machine** skill first."
+> "The nebskill package isn't installed yet. Run the **nebskill-configuring-machine** skill first."
 Stop. Do not proceed until this passes.
 
 ### 2. ORCA recipe configured
@@ -54,7 +54,7 @@ ls neb_local.yaml
 ```
 If `neb_local.yaml` is absent from the working directory, the ORCA binary path
 and MPI settings haven't been captured yet. Tell the user:
-> "No neb_local.yaml found. Run the **configuring-machine** skill to set up the ORCA recipe."
+> "No neb_local.yaml found. Run the **nebskill-configuring-machine** skill to set up the ORCA recipe."
 Stop.
 
 ### 3. Running mode
@@ -69,7 +69,7 @@ cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
 
 If cluster mode, verify the HPC agent is reachable by calling its
 `get_facility()` MCP tool. If it errors, tell the user:
-> "The HPC agent isn't responding. Re-run the **configuring-machine** skill to reconnect."
+> "The HPC agent isn't responding. Re-run the **nebskill-configuring-machine** skill to reconnect."
 Stop.
 
 ### Reaction data
