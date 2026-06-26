@@ -62,7 +62,7 @@ into it, and prints a JSON plan. **Read the plan** — and if it exits non-zero
 with `inputs_ready: false`, run the missing prerequisite first (load → relax →
 neb). Fields you'll use:
 
-- `command` — argv to run on the node (prefix with `uv run`)
+- `command` — argv to run on the node
 - `environment` — env vars the command needs (includes `NEBSKILL_WORKER=1`)
 - `local_dir` — where outputs are collected on this machine
 - `remote_subdir` — suggested per-attempt path under the remote project dir
@@ -80,12 +80,12 @@ Choose the remote job directory: `<remote_project_dir>/<remote_subdir>` (from
 
 Build the agent's job spec so it runs, **in the remote job directory**:
 ```
-uv run <command...>
+<command...>
 ```
 Map the plan onto the agent's `submit_job` JobSpec:
-- `executable: "uv"`, `arguments: ["run", *command]`
+- `executable: command[0]`, `arguments: command[1:]`
 - `directory:` the remote job directory
-- `environment:` the plan's `environment` (so `NEBSKILL_WORKER=1` etc. are set)
+- `environment:` the plan's `environment` (so `NEBSKILL_WORKER=1` is set)
 - `pre_launch:` the plan's `pre_launch` — the `module load` / `export` lines
   ORCA needs (its MPI/runtime libraries), from the configured recipe. These must
   run before the executable, which is exactly what JobSpec.pre_launch is for.
@@ -95,11 +95,10 @@ Map the plan onto the agent's `submit_job` JobSpec:
   or starves ranks), and `mem_mb` as the job memory.
 - account / partition / walltime: **the agent's** to fill from its own config —
   use the `walltime_hint` only as a suggestion (ORCA NEB can be long)
-- the job must `cd` into / `uv run` from the **remote_project_dir's** venv; the
-  simplest is to run from the remote project dir with `uv run --directory
-  <remote_project_dir> nebskill-… --output-dir <job dir>`, or `cd` to the job
-  dir and `uv run --project <remote_project_dir>`. Either way the worker computes
-  in the job directory (it has the staged inputs) using the cluster venv.
+- the `nebskill-*` commands must be on PATH in the job environment; they are
+  installed to `~/.local/bin` by pip, so ensure that directory is in PATH (the
+  `pre_launch` block is a good place to add it if the cluster doesn't include it
+  by default: `export PATH="$HOME/.local/bin:$PATH"`).
 
 Call `submit_job`; keep the returned `job_id`.
 

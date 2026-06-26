@@ -1,7 +1,7 @@
 {
   "name": "nebskill",
-  "version": "0.34.0",
-  "description": "Nudged Elastic Band reaction-barrier calculations on organic molecules using the Transition1x dataset, powered by native ORCA (Opt / NEB-CI / NEB-TS / OptTS / Freq / IRC / GOAT at wB97X/6-31G(d)). Requires uv; Python dependencies install automatically. Cluster jobs run via a companion HPC agent plugin (Rikyu/Hokusai).",
+  "version": "0.35.0",
+  "description": "Nudged Elastic Band reaction-barrier calculations on organic molecules using the Transition1x dataset, powered by native ORCA (Opt / NEB-CI / NEB-TS / OptTS / Freq / IRC / GOAT at wB97X/6-31G(d)). Python dependencies install via pip. Cluster jobs run via a companion HPC agent plugin (Rikyu/Hokusai).",
   "author": {
     "name": "william-dawson"
   },

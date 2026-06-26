@@ -9,8 +9,7 @@ description: >
   organic molecules.
 license: MIT
 compatibility: >
-  Requires uv (https://docs.astral.sh/uv/getting-started/installation/).
-  All Python dependencies install automatically via uv. Energetics are native
+  Python dependencies install via pip (pip3 as fallback). Energetics are native
   ORCA DFT, so an ORCA install on the cluster is required; ORCA runs on CPU. The
   reaction data ships as a small bundled cache — no dataset download needed.
 metadata:

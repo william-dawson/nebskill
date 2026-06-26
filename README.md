@@ -71,7 +71,7 @@ reactions. Three tools support it:
 The skills run in pipeline order:
 
 - **`/nebskill:configuring-machine`** — one-time setup: capture the cluster's
-  ORCA recipe, install/connect the companion HPC agent, and `uv` install.
+  ORCA recipe, install/connect the companion HPC agent, and `pip` install.
 - **`/nebskill:demo`** — run one reaction end-to-end (load → relax → NEB →
   analyze) to see the pipeline work and reproduce a published barrier. Best
   starting point after setup.
@@ -113,7 +113,7 @@ are native ORCA jobs — plan them with `nebskill-plan <step>` and dispatch via
 ## Requirements
 
 - [Claude Code](https://claude.ai/code)
-- [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- Python with `pip` (or `pip3`) — installed on virtually all HPC systems
 - For cluster runs: a companion HPC agent plugin (Rikyu for AI4S, Hokusai for
   HBW2). Optional if running locally on a shared-filesystem login node.
 - An ORCA install on the cluster (binary + modules); ORCA DFT runs on CPU.

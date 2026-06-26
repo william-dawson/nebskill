@@ -28,7 +28,7 @@ from nebskill.config import load_config
 _POS_DECIMALS = 6
 
 _DATASET_HINT = ("nebskill-build-cache needs the dataset tooling (h5py). Install "
-                 "the extra: `uv pip install 'nebskill[dataset]'`. Normal use reads "
+                 "the extra: `pip install 'nebskill[dataset]'`. Normal use reads "
                  "the bundled cache and needs none of this.")
 
 

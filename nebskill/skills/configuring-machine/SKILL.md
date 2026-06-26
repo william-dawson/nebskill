@@ -4,7 +4,7 @@ description: >
   One-time setup for nebskill on a machine: choose local vs cluster running
   mode, capture the ORCA recipe (binary, modules, nprocs), install a companion
   HPC agent plugin if running on a remote cluster (Rikyu for AI4S, Hokusai for
-  HBW2), install the nebskill Python package with uv both locally and on the
+  HBW2), install the nebskill Python package with pip both locally and on the
   cluster, and write neb_local.yaml and nebskill_cluster.yaml. Use once on each
   new machine, or when the user asks how to set up nebskill.
 allowed-tools: Bash Read Write
@@ -33,7 +33,7 @@ ORCA accessible there, the HPC agent is optional — jobs run in-process.
 - [ ] 2. Choose running mode (local vs cluster)
 - [ ] 3. Capture the ORCA recipe (binary path, modules, nprocs, memory)
 - [ ] 4. Install and verify the HPC agent plugin (cluster mode only)
-- [ ] 5. Install nebskill with uv — locally, and on the cluster (cluster mode only)
+- [ ] 5. Install nebskill with pip — locally, and on the cluster (cluster mode only)
 - [ ] 6. Write neb_local.yaml and nebskill_cluster.yaml
 
 ---
@@ -150,67 +150,58 @@ description, the agent is connected. If it errors:
 
 ---
 
-## 5 — Install nebskill with uv
-
-The project pyproject.toml is:
-```toml
-[project]
-name = "neb-project"
-version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = ["nebskill @ git+https://github.com/william-dawson/nebskill.git"]
-```
+## 5 — Install nebskill with pip
 
 nebskill's dependencies are light (ASE, numpy, matplotlib — no PyTorch, and the
 reaction data ships as a bundled cache). ORCA is the cluster binary from step 3,
 not a pip package.
 
-**Always set these before any `uv sync`** (HPC process caps break uv otherwise):
-```bash
-ulimit -s 512
-export RAYON_NUM_THREADS=1 TOKIO_WORKER_THREADS=1
-export UV_CONCURRENT_DOWNLOADS=4 UV_CONCURRENT_BUILDS=1 CARGO_BUILD_JOBS=1
-```
-
 ### Local install (always)
 
 Gives the agent the `nebskill-*` commands — including `nebskill-plan`, `load`,
-`analyze`, `summary`, `plot`. Write the pyproject.toml in WORKING_DIR and:
+`analyze`, `summary`, `plot`.
+
+Try `pip` first; fall back to `pip3` if `pip` is not found:
 ```bash
-cd WORKING_DIR && uv sync
+pip install 'nebskill @ git+https://github.com/william-dawson/nebskill.git'
+# or if pip is not on PATH:
+pip3 install 'nebskill @ git+https://github.com/william-dawson/nebskill.git'
 ```
+If neither is available, tell the user:
+> "Neither `pip` nor `pip3` was found. Please check the Python / pip installation
+> for this environment, or consult your system's documentation."
+Stop.
 
 Verify:
 ```bash
 nebskill-load --help
 ```
-If the command is not found after `uv sync`, check that `uv` is on PATH and
-that the venv's bin directory is activated (or use `uv run nebskill-load`).
+If the command is not found after installing, `~/.local/bin` may not be on PATH
+(common with `pip install --user`). Ask the user to add it:
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+and suggest they add that line to their shell config (`~/.bashrc` or `~/.zshrc`)
+so it persists.
 
 ### Cluster install (cluster mode only)
 
-The compute node needs nebskill too — the submitted job runs `uv run
-nebskill-neb …` there. Pick a remote project directory (e.g.
-`~/nebskill-project`) and install it **through the HPC agent** (it owns the
-connection). Using the agent's file/exec tools, create the pyproject.toml on
-the cluster and run the same capped `uv sync` in that directory:
+The compute node needs nebskill too — the submitted job runs `nebskill-neb …`
+directly. Install it **through the HPC agent** (it owns the connection). Using
+the agent's file/exec tools, run a short install job on the cluster:
 
-- `fs_upload` the pyproject.toml to `~/nebskill-project/pyproject.toml`
-- `submit_job` (or an interactive exec, if the agent offers one) a short job
-  that runs in that directory:
-  ```bash
-  ulimit -s 512
-  export RAYON_NUM_THREADS=1 TOKIO_WORKER_THREADS=1 UV_CONCURRENT_BUILDS=1 CARGO_BUILD_JOBS=1
-  command -v uv || curl -LsSf https://astral.sh/uv/install.sh | sh
-  cd ~/nebskill-project && uv sync
-  ```
-Show the user the output. **Verify** with:
 ```bash
-# via the HPC agent's run_command_on_cluster or fs_view of a test file
-uv run --project ~/nebskill-project nebskill-load --help
+pip install 'nebskill @ git+https://github.com/william-dawson/nebskill.git' \
+  || pip3 install 'nebskill @ git+https://github.com/william-dawson/nebskill.git'
 ```
-This remote project directory is where every NEB job will `cd` and run
-`uv run nebskill-*` — record it for step 6.
+
+Show the user the output. **Verify** with a quick `nebskill-load --help` via
+the HPC agent's exec tool (or a short `submit_job`). If the command is not found,
+the cluster's `~/.local/bin` may not be on PATH — ask the user to add it in their
+`~/.bashrc` on the cluster.
+
+Record the remote base directory where NEB job files will land (e.g.
+`~/nebskill-project`) for step 6.
 
 ---
 
@@ -248,7 +239,7 @@ skill knows where and how jobs dispatch. Skip this file in local mode.
 ```yaml
 # Generated by configuring-machine
 hpc_agent: hokusai           # or: rikyu — the companion plugin that submits jobs
-remote_project_dir: ~/nebskill-project   # where `uv run nebskill-*` runs on the cluster
+remote_project_dir: ~/nebskill-project   # base directory for remote job files
 ```
 
 The `hpc_agent` value must match the installed plugin name (`hokusai` or

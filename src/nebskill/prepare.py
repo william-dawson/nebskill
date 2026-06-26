@@ -28,12 +28,8 @@ from nebskill.paths import (LOCAL_CFG, attempt_name, effective_backend,
                             reaction_root, relax_dirname, resolve_out_dir,
                             write_latest)
 
-# Thread/process caps so a single-node job behaves on a busy login/compute node.
-# The agent may add its own (module loads, etc.) on top.
 WORKER_ENV = {
     "NEBSKILL_WORKER": "1",
-    "RAYON_NUM_THREADS": "1",
-    "TOKIO_WORKER_THREADS": "1",
 }
 
 # Advisory resource hint. The HPC agent's own config decides the real
@@ -72,7 +68,7 @@ class JobPlan:
     backend: str
     local_dir: Path                # where outputs are collected on this machine
     remote_subdir: str             # suggested per-attempt path under the agent's job root
-    command: list[str]             # argv to run on the node (prefix with `uv run`)
+    command: list[str]             # argv to run on the node
     environment: dict              # env vars the command needs on the node
     upload: list[str]              # files (relative to local_dir) to stage remotely
     download: list[str]            # files to retrieve back into local_dir

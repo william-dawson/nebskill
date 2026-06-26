@@ -13,7 +13,7 @@ def download(dest: Path) -> None:
     except ImportError as e:
         raise ImportError(
             "nebskill-download needs the dataset tooling (requests, tqdm). "
-            "Install the extra: `uv pip install 'nebskill[dataset]'`. Normal use "
+            "Install the extra: `pip install 'nebskill[dataset]'`. Normal use "
             "reads the bundled cache and needs neither the download nor this."
         ) from e
 
