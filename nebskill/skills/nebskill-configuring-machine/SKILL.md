@@ -1,5 +1,5 @@
 ---
-name: configuring-machine
+name: nebskill-configuring-machine
 description: >
   One-time setup for nebskill on a machine: choose local vs cluster running
   mode, capture the ORCA recipe (binary, modules, nprocs), install a companion

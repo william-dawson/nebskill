@@ -1,5 +1,5 @@
 ---
-name: finding-lower-barriers
+name: nebskill-finding-lower-barriers
 description: >
   Hunt for Transition1x reactions whose published transition state is not the
   lowest one — cases where the dataset's fixed-parameter NEB likely missed a
@@ -107,7 +107,7 @@ settle into a different basin:
   one initial guess.
 
 (If a candidate run won't converge, *then* reach for the optimizer/step levers in
-`/nebskill:monitoring-convergence` to land it — but expect the converged barrier
+`/nebskill:nebskill-monitoring-convergence` to land it — but expect the converged barrier
 to be path-determined, not optimizer-determined.)
 
 Background long runs and watch ORCA's `neb.out` (via the HPC agent's `fs_tail`).
@@ -127,7 +127,7 @@ A real flaw requires **ALL** of the following — anything less is a null result
 - [ ] **Genuine first-order saddle** — the NEB climbing image only *approximates*
       the saddle, so a frequency calc on it is a screen, not a verdict (it can show
       one real imaginary mode plus small spurious near-zero ones). Refine to the
-      true stationary point with `/nebskill:verifying-transition-state`
+      true stationary point with `/nebskill:nebskill-verifying-transition-state`
       (`nebskill-optts`) and read the result: exactly one imaginary mode = a real
       TS; zero = the low point is a minimum (an intermediate); two or more after
       refinement = a ridge, not a valid TS. `nebskill-frequencies` on the raw NEB

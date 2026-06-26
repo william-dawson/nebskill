@@ -1,5 +1,5 @@
 ---
-name: running-on-the-cluster
+name: nebskill-running-on-the-cluster
 description: >
   Dispatch a nebskill compute step (relax, neb, or frequencies) to an HPC
   cluster by combining nebskill's job plan with a companion HPC agent plugin

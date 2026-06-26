@@ -1,5 +1,5 @@
 ---
-name: verifying-transition-state
+name: nebskill-verifying-transition-state
 description: >
   Confirm a transition state is a genuine first-order saddle by computing
   vibrational frequencies and checking it has exactly one imaginary mode. Use
@@ -54,7 +54,7 @@ nebskill-frequencies --reaction-id INT
 At the converged NEB transition state, ORCA computes an analytic Hessian
 (! Freq) — a real DFT cost: plan it with `nebskill-plan frequencies
 --reaction-id INT` and dispatch it to a compute node via
-`/nebskill:running-on-the-cluster`.
+`/nebskill:nebskill-running-on-the-cluster`.
 
 Options:
 - `--source dataset` — analyze the dataset's stored `transition_state` instead
@@ -99,7 +99,7 @@ saddle. Interpretation after refinement:
   TS for this step.
 
 Run OptTS whenever the raw NEB-image frequency is borderline, or before claiming
-any lower barrier in `/nebskill:finding-lower-barriers`. (It confirms the saddle;
+any lower barrier in `/nebskill:nebskill-finding-lower-barriers`. (It confirms the saddle;
 confirming *which endpoints it connects* needs the IRC below.)
 
 ## Confirming connectivity — `nebskill-irc` (ORCA)
@@ -171,7 +171,7 @@ rigid TS there is nothing to find.
 
 ## Using it in a barrier claim
 
-In `/nebskill:finding-lower-barriers`, a lower barrier only counts if its TS is
+In `/nebskill:nebskill-finding-lower-barriers`, a lower barrier only counts if its TS is
 a real saddle — confirm it:
 
 ```bash

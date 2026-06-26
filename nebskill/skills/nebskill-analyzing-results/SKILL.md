@@ -1,5 +1,5 @@
 ---
-name: analyzing-results
+name: nebskill-analyzing-results
 description: >
   Computes reaction barriers, generates the energy profile plot, and writes the
   convergence log from a converged NEB calculation. Use after running-neb

@@ -1,5 +1,5 @@
 ---
-name: reproduce
+name: nebskill-reproduce
 description: >
   Run the reproduction study: work through a packaged set of reactions and, for
   each, determine the reaction barrier — matching the reference (open mode) or

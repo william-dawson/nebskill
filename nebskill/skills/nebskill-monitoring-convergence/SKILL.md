@@ -1,5 +1,5 @@
 ---
-name: monitoring-convergence
+name: nebskill-monitoring-convergence
 description: >
   Diagnoses native ORCA NEB convergence failures and drives an agent-based retry
   loop. Reads the ORCA neb.out, reasons about the failure mode, chooses one
@@ -75,7 +75,7 @@ From `neb.out`, read these together:
 
 A barrier that *converged but sits above the dataset* is not a convergence
 failure at all — it means the band found a higher saddle than the dataset's
-(under-resolution or a wrong basin). See `/nebskill:finding-lower-barriers`:
+(under-resolution or a wrong basin). See `/nebskill:nebskill-finding-lower-barriers`:
 more images, or seeding through the dataset TS.
 
 ---
@@ -134,7 +134,7 @@ nebskill-neb   --reaction-id INT
 
 Read `outputs/reaction_{id:04d}/neb_result.json`.
 
-- `latest.converged: true` → proceed to `/nebskill:analyzing-results`
+- `latest.converged: true` → proceed to `/nebskill:nebskill-analyzing-results`
 - Not converged, attempts remaining → go back to 4.1
 - Attempts exhausted → write failure report and stop
 
@@ -142,7 +142,7 @@ Read `outputs/reaction_{id:04d}/neb_result.json`.
 run: it gets its own parameter-derived attempt directory (locally and on the
 cluster), so it never clobbers the previous attempt. Plan and dispatch it like
 any other run — `nebskill-plan neb …` then the HPC agent loop
-(`/nebskill:running-on-the-cluster`). **Re-running the exact same command** after
+(`/nebskill:nebskill-running-on-the-cluster`). **Re-running the exact same command** after
 a crash or timeout simply re-uses that same attempt directory; just dispatch it
 again (the agent submits a fresh job).
 

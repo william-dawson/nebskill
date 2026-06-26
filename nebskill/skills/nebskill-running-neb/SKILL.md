@@ -1,5 +1,5 @@
 ---
-name: running-neb
+name: nebskill-running-neb
 description: >
   Runs a native ORCA NEB to find the minimum energy path and reaction barrier.
   Use after relaxing-endpoints. If convergence fails (returncode=4), use
@@ -76,12 +76,12 @@ nebskill-neb --reaction-id INT \
 
 A native ORCA NEB is a DFT job and can take hours, so it normally runs on the
 cluster. ORCA logs its own per-iteration convergence to `neb.out` — watch it live
-with the HPC agent's `fs_tail` (see `/nebskill:running-on-the-cluster`). The table
+with the HPC agent's `fs_tail` (see `/nebskill:nebskill-running-on-the-cluster`). The table
 shows the max/RMS perpendicular force and the climbing-image energy per iteration.
 
 If it stalls — the barrier plateauing high while the perpendicular force won't
 drop, or the force oscillating — cancel and re-launch with an adjusted lever (see
-`/nebskill:monitoring-convergence`) rather than burning the whole iteration
+`/nebskill:nebskill-monitoring-convergence`) rather than burning the whole iteration
 budget. Exit code 4 means ORCA's NEB did not converge → `monitoring-convergence`.
 
 ## n_images
@@ -125,6 +125,6 @@ fmax target.
 ## Exit codes
 
 - `0` — converged
-- `4` — convergence failure → proceed to `/nebskill:monitoring-convergence`
+- `4` — convergence failure → proceed to `/nebskill:nebskill-monitoring-convergence`
 
 See `${CLAUDE_PLUGIN_ROOT}/references/neb_method.md`.

@@ -1,5 +1,5 @@
 ---
-name: loading-reaction
+name: nebskill-loading-reaction
 description: >
   Loads one reaction from the bundled reaction cache and writes its NEB endpoints
   (reactant / product / transition-state geometries + reference barrier). Use when

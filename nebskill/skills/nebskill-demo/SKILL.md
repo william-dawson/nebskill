@@ -1,5 +1,5 @@
 ---
-name: demo
+name: nebskill-demo
 description: >
   Run one reaction end-to-end as a guided demo of the whole nebskill pipeline:
   load → relax → NEB → analyze (and optionally OptTS / Hessian / IRC), reproducing
@@ -50,7 +50,7 @@ reaction data is cached locally — there is no dataset download.
 Go one step at a time, showing the command and what came back before moving on.
 Each compute step (relax, neb, …) is a native ORCA job — run it locally if Claude
 is on a login node with ORCA, otherwise plan it with `nebskill-plan <step>` and
-dispatch via `/nebskill:running-on-the-cluster`.
+dispatch via `/nebskill:nebskill-running-on-the-cluster`.
 
 1. **Load** the reaction and read off the reference barrier:
    ```bash
@@ -90,7 +90,7 @@ dispatch via `/nebskill:running-on-the-cluster`.
 
 Tell the user what happened in plain terms: the reference barrier, the barrier
 nebskill computed, and whether they agree. If they match, the pipeline and their
-machine are working — point them at `/nebskill:reproduce` to run a real study, or
+machine are working — point them at `/nebskill:nebskill-reproduce` to run a real study, or
 just ask for a reaction by index. If they *don't* match or a step failed, that's
-the useful signal: a non-converged NEB goes to `/nebskill:monitoring-convergence`,
-and a setup/dispatch failure points back at `/nebskill:configuring-machine`.
+the useful signal: a non-converged NEB goes to `/nebskill:nebskill-monitoring-convergence`,
+and a setup/dispatch failure points back at `/nebskill:nebskill-configuring-machine`.

@@ -1,5 +1,5 @@
 ---
-name: relaxing-endpoints
+name: nebskill-relaxing-endpoints
 description: >
   Relaxes reactant and product endpoint structures with native ORCA geometry
   optimization. Mandatory — Transition1x endpoints are not local minima at our
@@ -93,4 +93,4 @@ Both endpoints use the same calculator instance — the model loads once.
 - Relaxation is a native ORCA `! Opt` at ωB97X/6-31G(d) — the dataset's own
   method — so the relaxed endpoints sit at the same level the barrier is measured.
 - This is a real DFT job: plan it with `nebskill-plan relax` and dispatch via
-  `/nebskill:running-on-the-cluster` (or run locally on a login node).
+  `/nebskill:nebskill-running-on-the-cluster` (or run locally on a login node).

@@ -110,7 +110,7 @@ active configuration:
 | ORCA recipe (binary, nprocs, modules) | machine-specific | neb_local.yaml (set at setup) |
 
 The machine-specific ORCA recipe is written into `neb_local.yaml` at setup
-(`/nebskill:configuring-machine`).
+(`/nebskill:nebskill-configuring-machine`).
 
 Then ask:
 > "Shall I proceed with these settings, or would you like to change anything?"
@@ -126,26 +126,26 @@ Execute each step in order by running its CLI command. Read the step's skill
 for details, then report a brief summary before moving to the next. The relax
 and neb commands are compute jobs. For cluster runs, plan them with
 `nebskill-plan` and dispatch them through the companion HPC agent plugin
-(`/nebskill:running-on-the-cluster`).
+(`/nebskill:nebskill-running-on-the-cluster`).
 
 1. **Load reaction** — run `nebskill-load --reaction-id INT`
-   - See `/nebskill:loading-reaction` for output schema
+   - See `/nebskill:nebskill-loading-reaction` for output schema
    - Report: formula, number of atoms, DFT barrier from Transition1x
 
 2. **Relax endpoints** — run `nebskill-relax --reaction-id INT`
-   - See `/nebskill:relaxing-endpoints` — runs on a compute node
+   - See `/nebskill:nebskill-relaxing-endpoints` — runs on a compute node
    - Report: converged fmax for reactant and product, optimizer used
 
 3. **Run NEB** — run `nebskill-neb --reaction-id INT`
-   - See `/nebskill:running-neb` — runs on a compute node
+   - See `/nebskill:nebskill-running-neb` — runs on a compute node
    - Report: whether phase 1 and phase 2 converged, final fmax, steps taken
 
 4. **Monitor & retry if needed** — only if `nebskill-neb` exited with code 4
-   - See `/nebskill:monitoring-convergence`
+   - See `/nebskill:nebskill-monitoring-convergence`
    - Report: diagnosed failure mode, intervention chosen, outcome
 
 5. **Analyze & report** — run `nebskill-analyze`, `nebskill-plot`, `nebskill-writer`
-   - See `/nebskill:analyzing-results`
+   - See `/nebskill:nebskill-analyzing-results`
    - Report: forward and reverse barriers in eV and kcal/mol, our barrier vs
      the dataset's DFT reference, location of the transition state image
 
