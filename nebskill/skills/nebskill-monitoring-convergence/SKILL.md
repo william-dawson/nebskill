@@ -48,6 +48,19 @@ live; after a run, read it). Its per-iteration table is your diagnostic — read
 - **the barrier is still descending at MaxIter** → it was converging, just needs
   more `--max-iter`.
 - **the band kinks early** → poor initial guess; `--sidpp` or more `--n-images`.
+- **the climbing-image *index* keeps changing right as it nears convergence**
+  (the `CI` column in the iteration table — which image number is currently
+  treated as the climbing image — jumps 5→7→4→8→3, force resetting to
+  ~0.02-0.05 each time it reassigns) → the images are too sparse to
+  unambiguously resolve which one is the true saddle, so ORCA keeps
+  re-picking a different image as CI, restarting the convergence countdown
+  every time. This can cycle for many iterations without ever settling.
+  Distinct from plain oscillation (force noisy but same CI index throughout)
+  — the fix is `--n-images`, not a smaller step or different optimizer.
+  Observed empirically: 15 images (the calibrated floor) was enough for most
+  reactions (CI index stable from early on) but reassigned 4 times on one
+  C6H14O case before finally settling; bump toward 20-25 if the CI index
+  keeps moving.
 - **the run timed out without converging** → `neb.out`'s last iterations are your
   record of where it stalled; near-converged at the tails is the classic
   `--neb-type NEB-TS` case.
@@ -89,7 +102,7 @@ already failed.
 
 | Intervention | CLI flag | When |
 |---|---|---|
-| More images | `--n-images N` | images too far apart / under-resolved (the calibrated floor is 15; some ring rearrangements need it to reach the dataset saddle) |
+| More images | `--n-images N` | images too far apart / under-resolved (the calibrated floor is 15; some ring rearrangements need it to reach the dataset saddle); also the fix for repeated climbing-image reshuffling (see 4.1) — the barrier region needs finer resolution to keep the CI assignment stable |
 | **Increase** spring constant | `--spring-constant 0.2` | images collapsing/bunching (low/uneven spacing); stiffer springs keep them spread. ORCA `SpringConst`, Eh/Bohr² |
 | **Decrease** spring constant | `--spring-constant 0.05` | springs over-tension a curved MEP and pull it straight; softer lets images follow the valley |
 | Re-relax endpoints tighter | `nebskill-relax --fmax 0.005` then re-run | high force at the endpoints |

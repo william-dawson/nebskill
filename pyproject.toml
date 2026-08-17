@@ -1,6 +1,6 @@
 [project]
 name = "nebskill"
-version = "0.35.0"
+version = "0.36.0"
 description = "Nudged Elastic Band reaction-barrier calculations with native ORCA on the Transition1x dataset"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -16,6 +16,11 @@ dependencies = [
 # and needs none of this — install `nebskill[dataset]` only to regenerate.
 [project.optional-dependencies]
 dataset = ["h5py>=3.10", "requests>=2.31", "tqdm>=4.66"]
+
+# Only needed to run the bundled MCP server that logs reaction-study history
+# (nebskill-history-mcp) to a queryable SQLite database. Normal use needs
+# none of this — install `nebskill[history]` to enable it.
+history = ["mcp>=2.0"]
 
 [project.scripts]
 nebskill-download = "nebskill.download:main"
@@ -34,6 +39,7 @@ nebskill-optts    = "nebskill.optts:main"
 nebskill-irc      = "nebskill.irc:main"
 nebskill-goat     = "nebskill.goat:main"
 nebskill-summary  = "nebskill.summary:main"
+nebskill-history-mcp = "nebskill.history_mcp:main"
 
 [build-system]
 requires = ["hatchling"]
