@@ -33,9 +33,9 @@ settings not yet captured).
 ```bash
 cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
 ```
-- Present → cluster mode; note `hpc_agent` and `remote_project_dir`.
-  Call the agent's `get_facility()` to confirm it's reachable. If it errors →
-  stop and re-run **nebskill-configuring-machine**.
+- Present → cluster mode; note `facility` and `remote_project_dir`.
+  Call hpc-rookery's `get_facility(facility=<facility>)` to confirm it's
+  reachable. If it errors → stop and re-run **nebskill-configuring-machine**.
 - Absent → local mode; ORCA must be accessible on this machine.
 
 Pick a reaction from the bundled cache:

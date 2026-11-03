@@ -56,10 +56,10 @@ lower barrier as a hypothesis to disprove.
 
 ## Running calculations
 
-Heavy steps run on the cluster through the companion HPC agent's MCP tools. They
-are **deferred** — load them first with ToolSearch (e.g.
-`select:mcp__plugin_hokusai_hokusai-hpc__submit_job`,`...get_job_status`,
-`...fs_view`). The machine-specific recipe — ORCA binary path, module loads,
+Heavy steps run on the cluster through hpc-rookery's `hpc` plugin MCP tools.
+They are **deferred** — load them first with ToolSearch (e.g.
+`select:mcp__plugin_hpc_hpc__submit_job,mcp__plugin_hpc_hpc__get_job_status,mcp__plugin_hpc_hpc__fs_view`).
+Every call takes the `facility` slug from `nebskill_cluster.yaml`. The machine-specific recipe — ORCA binary path, module loads,
 account, partition — lives in the working directory's cluster config
 (`neb_local.yaml` / `nebskill_cluster.yaml`) and the **running-on-the-cluster**
 skill; read those rather than assuming. Jobs run the nebskill worker

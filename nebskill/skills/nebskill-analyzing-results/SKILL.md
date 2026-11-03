@@ -20,7 +20,7 @@ Not found → stop. Run the **nebskill-configuring-machine** skill first.
 ls outputs/reaction_$(printf '%04d' REACTION_ID)/neb_result.json
 ```
 Missing → the NEB hasn't run (or hasn't been downloaded from the cluster yet).
-Run the **running-neb** skill first, or fetch results via the HPC agent.
+Run the **running-neb** skill first, or fetch results via hpc-rookery's `fs_download`.
 
 ---
 

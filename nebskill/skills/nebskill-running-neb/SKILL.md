@@ -27,8 +27,9 @@ Missing → stop. Run the **nebskill-configuring-machine** skill.
 ```bash
 cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
 ```
-- Present → cluster mode; call the HPC agent's `get_facility()` to confirm it's
-  reachable. If it errors → stop, re-run **nebskill-configuring-machine**.
+- Present → cluster mode; call hpc-rookery's `get_facility(facility=<facility>)`
+  with the `facility` slug from the file to confirm it's reachable. If it errors →
+  stop, re-run **nebskill-configuring-machine**.
 - Absent → local mode.
 
 **4. Endpoints relaxed**
@@ -76,7 +77,7 @@ nebskill-neb --reaction-id INT \
 
 A native ORCA NEB is a DFT job and can take hours, so it normally runs on the
 cluster. ORCA logs its own per-iteration convergence to `neb.out` — watch it live
-with the HPC agent's `fs_tail` (see `/nebskill:nebskill-running-on-the-cluster`). The table
+with hpc-rookery's `fs_tail` (see `/nebskill:nebskill-running-on-the-cluster`). The table
 shows the max/RMS perpendicular force and the climbing-image energy per iteration.
 
 If it stalls — the barrier plateauing high while the perpendicular force won't

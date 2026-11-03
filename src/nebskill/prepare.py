@@ -2,8 +2,8 @@
 
 nebskill authors the *job*: which command to run, which input files it needs,
 which outputs to retrieve, where they live locally, and a rough resource hint.
-It does NOT submit anything. A companion HPC agent plugin (e.g. Rikyu for AI4S,
-Hokusai for HBW2) owns the transport — it wraps the command in a scheduler
+It does NOT submit anything. The hpc-rookery `hpc` plugin
+(william-dawson/hpc-rookery) owns the transport — it wraps the command in a scheduler
 script with the right account/partition/modules and runs it through its MCP
 tools (fs_upload / submit_job / get_job_status / fs_tail / fs_download).
 
@@ -32,7 +32,7 @@ WORKER_ENV = {
     "NEBSKILL_WORKER": "1",
 }
 
-# Advisory resource hint. The HPC agent's own config decides the real
+# Advisory resource hint. hpc-rookery's facility config decides the real
 # account/partition/walltime; this is just a starting point it can honor or
 # override.
 RESOURCE_HINTS = {
@@ -61,7 +61,7 @@ def _orca_job_extras(step: str) -> tuple[str, dict]:
 
 @dataclass
 class JobPlan:
-    """Everything the HPC agent needs to run one compute step, and nothing about
+    """Everything hpc-rookery needs to run one compute step, and nothing about
     the cluster itself (account/partition/modules are the agent's job)."""
     step: str                      # "relax" | "neb" | "frequencies"
     reaction_id: int

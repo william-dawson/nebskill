@@ -28,8 +28,9 @@ yet captured — every reaction in the study needs them).
 ```bash
 cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
 ```
-- Present → cluster mode; call the HPC agent's `get_facility()` to confirm it's
-  reachable. If it errors → stop, re-run **nebskill-configuring-machine**.
+- Present → cluster mode; call hpc-rookery's `get_facility(facility=<facility>)`
+  with the `facility` slug from the file to confirm it's reachable. If it errors →
+  stop, re-run **nebskill-configuring-machine**.
 - Absent → local mode.
 
 **4. Study data present**

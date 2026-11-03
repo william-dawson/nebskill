@@ -59,7 +59,7 @@ def main():
 
     import os
     if os.environ.get("NEBSKILL_WORKER"):
-        # On the compute node: the HPC agent staged the TS inputs here.
+        # On the compute node: hpc-rookery staged the TS inputs here.
         out_dir = Path(args.output_dir) if args.output_dir else \
                   Path(f"outputs/reaction_{args.reaction_id:04d}")
     else:

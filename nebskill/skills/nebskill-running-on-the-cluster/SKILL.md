@@ -2,10 +2,9 @@
 name: nebskill-running-on-the-cluster
 description: >
   Dispatch a nebskill compute step (relax, neb, or frequencies) to an HPC
-  cluster by combining nebskill's job plan with a companion HPC agent plugin
-  (Rikyu for AI4S, Hokusai for HBW2). nebskill authors the job; the agent runs
-  it. Use whenever a relax/neb/frequencies step should run on a compute node
-  rather than locally, or when the user asks how jobs reach the cluster.
+  cluster by combining nebskill's job plan with the hpc-rookery HPC plugin.
+  nebskill authors the job; hpc-rookery runs it. Use whenever a
+  relax/neb/frequencies step should run on a compute node rather than locally, or when the user asks how jobs reach the cluster.
 allowed-tools: Bash Read Write
 ---
 
@@ -28,24 +27,28 @@ cluster mode not configured). If you only have `neb_local.yaml` and not
 `nebskill_cluster.yaml`, the machine was set up in local mode — either re-run
 **nebskill-configuring-machine** in cluster mode, or run jobs locally instead.
 
-**3. HPC agent reachable**
-Read `hpc_agent` from `nebskill_cluster.yaml`, then call that agent's
-`get_facility()` MCP tool. If it errors → stop; re-run **nebskill-configuring-machine**
-to reconnect.
+**3. hpc-rookery reachable**
+Read `facility` from `nebskill_cluster.yaml` (an older file may call it
+`hpc_agent`; the value is the same slug). Call
+`get_facility(facility=<facility>)`. If it errors → stop; re-run
+**nebskill-configuring-machine** to reconnect.
 
-> **Codex note**: The HPC agent's MCP tools (`submit_job`, `fs_upload`, etc.)
-> are available by the same names in both Claude Code and Codex once the plugin
-> is installed. The workflow below is identical in both clients.
+> **Tools**: hpc-rookery's MCP tools (`submit_job`, `fs_upload`, …) come from
+> its base `hpc` plugin and are the same in Claude Code and Codex. In Claude
+> Code they are deferred as `mcp__plugin_hpc_hpc__<tool>` — load them with
+> ToolSearch before the first call. **Every call takes
+> `facility=<facility>`.** For that machine's scheduler gotchas, use its
+> `hpc-<facility>` skill pack (e.g. `<facility>-submitting-jobs`).
 
 ---
 
 ## The model: two plugins, one job
 
 nebskill knows the **chemistry** — what command to run, which files it needs,
-which outputs to keep. The HPC agent (Rikyu/Hokusai) knows the **cluster** —
-account, partition, modules, and the transport. You glue them together per step.
+which outputs to keep. hpc-rookery knows the **cluster** — account,
+partition, modules, and the transport. You glue them together per step.
 
-`nebskill-plan` emits the chemistry half as JSON; you map it onto the agent's
+`nebskill-plan` emits the chemistry half as JSON; you map it onto hpc-rookery's
 MCP tools. Cheap steps (`load`, `analyze`, `summary`, `plot`, `diagnose`) just
 run locally — only `relax`, `neb`, `frequencies` go through this loop.
 
@@ -73,16 +76,16 @@ neb). Fields you'll use:
 ### 2 — Stage inputs to the cluster
 
 Choose the remote job directory: `<remote_project_dir>/<remote_subdir>` (from
-`nebskill_cluster.yaml`). For each file in `upload`, read it from `local_dir` and
-`fs_upload` it to that remote directory.
+`nebskill_cluster.yaml`). `fs_mkdir` it, then for each file in `upload`,
+`fs_upload(facility, local_path=<local_dir>/<file>, remote_path=<remote dir>/<file>)`.
 
 ### 3 — Submit
 
-Build the agent's job spec so it runs, **in the remote job directory**:
+Build the job spec so it runs, **in the remote job directory**:
 ```
 <command...>
 ```
-Map the plan onto the agent's `submit_job` JobSpec:
+Map the plan onto `submit_job(facility, spec)`'s JobSpec:
 - `executable: command[0]`, `arguments: command[1:]`
 - `directory:` the remote job directory
 - `environment:` the plan's `environment` (so `NEBSKILL_WORKER=1` is set)
@@ -91,10 +94,13 @@ Map the plan onto the agent's `submit_job` JobSpec:
   run before the executable, which is exactly what JobSpec.pre_launch is for.
 - `resources:` honor the plan's `cpus`/`gpus`. For **orca**, the plan also gives
   `ntasks` and `mem_mb` derived from the ORCA `nprocs` recipe — pass `ntasks`
-  through so the MPI rank count matches ORCA's `%pal nprocs` (a mismatch wastes
-  or starves ranks), and `mem_mb` as the job memory.
-- account / partition / walltime: **the agent's** to fill from its own config —
-  use the `walltime_hint` only as a suggestion (ORCA NEB can be long)
+  as `resources.processes_per_node` (one node) so the MPI rank count matches
+  ORCA's `%pal nprocs` (a mismatch wastes or starves ranks), and `mem_mb` as
+  `resources.memory` — which is **bytes** per node, so `mem_mb * 1024 * 1024`.
+- account / partition / walltime: **hpc-rookery's** to fill from the facility
+  config — use the `walltime_hint` only as a suggestion (ORCA NEB can be long).
+  `render_job_script(facility, spec)` shows the exact batch script without
+  submitting, which is a cheap check on a first run.
 - the `nebskill-*` commands must be on PATH in the job environment; they are
   installed to `~/.local/bin` by pip, so ensure that directory is in PATH (the
   `pre_launch` block is a good place to add it if the cluster doesn't include it
@@ -104,7 +110,7 @@ Call `submit_job`; keep the returned `job_id`.
 
 ### 4 — Watch it (background-friendly)
 
-Poll `get_job_status(job_id)` until it leaves `queued`/`active`. For a NEB the
+Poll `get_job_status(facility, job_id)` until it leaves `queued`/`active`. For a NEB the
 plan's `progress_file` is `neb.out` — `fs_tail` the remote `<job dir>/neb.out` to
 watch ORCA's NEB log live: its per-iteration table (max/RMS perpendicular force,
 the climbing-image energy). This is how you notice a band stalling or a barrier
@@ -138,7 +144,7 @@ results always land back with the arguments that produced them.
 ## Running fully locally instead
 
 If Claude is already on the login node with a shared filesystem and ORCA is
-available there, skip the agent entirely: just run `nebskill-relax` /
+available there, skip hpc-rookery entirely: just run `nebskill-relax` /
 `nebskill-neb` / `nebskill-frequencies` directly. They do the same planning
 in-process and compute in the attempt directory. Use the cluster loop when the
 compute belongs on a batch node (ORCA DFT can run for hours).

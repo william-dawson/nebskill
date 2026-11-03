@@ -2,9 +2,9 @@
 name: nebskill-configuring-machine
 description: >
   One-time setup for nebskill on a machine: choose local vs cluster running
-  mode, capture the ORCA recipe (binary, modules, nprocs), install a companion
-  HPC agent plugin if running on a remote cluster (Rikyu for AI4S, Hokusai for
-  HBW2), install the nebskill Python package with pip both locally and on the
+  mode, capture the ORCA recipe (binary, modules, nprocs), install the
+  hpc-rookery HPC plugin and the facility's skill pack if running on a remote
+  cluster, install the nebskill Python package with pip both locally and on the
   cluster, and write neb_local.yaml and nebskill_cluster.yaml. Use once on each
   new machine, or when the user asks how to set up nebskill.
 allowed-tools: Bash Read Write
@@ -14,25 +14,29 @@ allowed-tools: Bash Read Write
 
 nebskill does **not** talk to the cluster itself. The heavy steps (relax, neb,
 frequencies) run on a compute node, and the submission/file-transfer is owned by
-a **companion HPC agent plugin** that you install alongside nebskill:
+**[hpc-rookery](https://github.com/william-dawson/hpc-rookery)**, installed
+alongside nebskill as two pieces:
 
-- **Rikyu-Agent** — RIKEN AI4S supercomputer
-- **Hokusai-Agent** — RIKEN HOKUSAI BigWaterfall2 (HBW2)
+- the base **`hpc`** plugin — the shared MCP servers (`hpc`, `hpc-docs`) whose
+  tools all take an explicit `facility` slug (`rikyu`, `hokusai`, `fugaku`,
+  `miyabi`, `rccs-cloud`, `crux`, …);
+- one **`hpc-<slug>`** skill pack per cluster the user actually uses — that
+  machine's configuring, submitting and monitoring know-how.
 
 nebskill **authors** each job (`nebskill-plan` emits the command + the files to
-move + a resource hint); the HPC agent **runs** it through its MCP tools
+move + a resource hint); hpc-rookery **runs** it through its MCP tools
 (`fs_upload`, `submit_job`, `get_job_status`, `fs_tail`, `fs_download`). The two
-plugins work together — see the **running-on-the-cluster** skill for the loop.
+work together — see the **running-on-the-cluster** skill for the loop.
 
 If Claude (or Codex) is already on a login node with a shared filesystem and
-ORCA accessible there, the HPC agent is optional — jobs run in-process.
+ORCA accessible there, hpc-rookery is optional — jobs run in-process.
 
 ## Checklist
 
 - [ ] 1. Working directory
 - [ ] 2. Choose running mode (local vs cluster)
 - [ ] 3. Capture the ORCA recipe (binary path, modules, nprocs, memory)
-- [ ] 4. Install and verify the HPC agent plugin (cluster mode only)
+- [ ] 4. Install and verify hpc-rookery (cluster mode only)
 - [ ] 5. Install nebskill with pip — locally, and on the cluster (cluster mode only)
 - [ ] 6. Write neb_local.yaml and nebskill_cluster.yaml
 
@@ -44,7 +48,7 @@ Ask:
 > "Where would you like to run NEB calculations? (full path to a directory)"
 
 Create it if missing. This is the **local** working directory where the agent
-runs, `nebskill-plan` is invoked, and outputs are collected (the HPC agent
+runs, `nebskill-plan` is invoked, and outputs are collected (hpc-rookery
 downloads results back here).
 
 ---
@@ -58,16 +62,18 @@ Ask:
 This is a hard branch that determines the rest of setup:
 
 - **Local mode** — ORCA is on this machine (or a shared filesystem accessible
-  from here). No HPC agent needed. Skip step 4 and the cluster half of step 5.
+  from here). No hpc-rookery needed. Skip step 4 and the cluster half of step 5.
   Jobs will run in-process via `nebskill-relax` / `nebskill-neb` directly.
 
 - **Cluster mode** — ORCA runs on a remote compute node; job dispatch goes
-  through an HPC agent plugin. If cluster mode, also ask:
-  > "Which cluster? (AI4S / HBW2 / other)"
+  through hpc-rookery. If cluster mode, also ask:
+  > "Which cluster?"
 
-  If "other", note that the user will need a compatible HPC agent plugin with
-  the standard `submit_job` / `fs_upload` / `fs_download` / `get_job_status`
-  MCP tool interface (see RIKEN-RCCS/Hokusai-Agent PORTING.md).
+  Map the answer to an hpc-rookery facility slug. If the `hpc` plugin is
+  already installed, `get_facilities()` lists them; otherwise see the facility
+  table in the hpc-rookery README (e.g. AI4S → `rikyu`, HBW2 → `hokusai`,
+  Fugaku → `fugaku`). A cluster hpc-rookery doesn't support yet can be added
+  by following its `PORTING.md`.
 
 Record the chosen mode — it will be written to `nebskill_cluster.yaml` in step 6.
 
@@ -91,62 +97,63 @@ command) and read off:
   (`--mem`, → per-rank `%maxcore`).
 
 These go into `neb_local.yaml`'s `calculator.orca` block in step 6. Account and
-partition are **not** captured here — those belong to the HPC agent.
+partition are **not** captured here — those belong to hpc-rookery's facility
+config.
 
 ---
 
-## 4 — Install and verify the HPC agent (cluster mode only)
+## 4 — Install and verify hpc-rookery (cluster mode only)
 
 Skip this step entirely in local mode.
 
-Find out which cluster the user runs on and install the matching agent plugin
-**if it isn't already installed**:
-
-- AI4S → `RIKEN-RCCS/Rikyu-Agent`, config at `~/.rikyu/config.json`
-- HBW2 → `RIKEN-RCCS/Hokusai-Agent`, config at `~/.hokusai/config.json`
+Install the base `hpc` plugin plus the skill pack for the chosen facility
+**if they aren't already installed**. Install only the pack(s) the user
+actually has access to — never all of them.
 
 ### Installation
 
 **In Claude Code**, these are slash commands the **user** runs (tell them to
-type them):
-
-For AI4S / Rikyu:
+type them; replace `<slug>` with the facility from step 2):
 ```
-/plugin marketplace add RIKEN-RCCS/Rikyu-Agent
-/plugin install rikyu@rikyu-marketplace
+/plugin marketplace add william-dawson/hpc-rookery
+/plugin install hpc@hpc-marketplace
+/plugin install hpc-<slug>@hpc-marketplace
 /reload-plugins
 ```
 
-For HBW2 / Hokusai:
+**In Codex**, add the `william-dawson/hpc-rookery` marketplace in the plugin
+settings, then install the same two plugins:
 ```
-/plugin marketplace add RIKEN-RCCS/Hokusai-Agent
-/plugin install hokusai@hokusai-marketplace
-/reload-plugins
+codex plugin add hpc@hpc-marketplace
+codex plugin add hpc-<slug>@hpc-marketplace
 ```
-
-**In Codex**, plugins are installed through Codex's plugin panel rather than
-slash commands. Tell the user to:
-1. Open the Codex plugin settings.
-2. Add the plugin from `https://github.com/RIKEN-RCCS/Hokusai-Agent` (for HBW2)
-   or `https://github.com/RIKEN-RCCS/Rikyu-Agent` (for AI4S).
-3. Confirm the plugin is enabled and its MCP servers are running.
+Confirm both are enabled and the `hpc` MCP servers are running.
 
 ### Configure SSH access
 
-Once installed, the agent needs SSH access to the cluster. Have the user set
-`ssh.host` in the agent's config file (`~/.hokusai/config.json` or
-`~/.rikyu/config.json`) to an `~/.ssh/config` alias or `user@hostname` with
-key-based auth already working.
+Each facility has its own settings file at `~/.hpc-agent/<slug>.json`; the
+minimum is an SSH host:
+```json
+{"ssh": {"host": "<ssh-config alias or user@hostname>"}}
+```
+Some machines need more (a project group on Fugaku, a project account on
+HOKUSAI). Don't look this up by hand: the facility pack's
+`<slug>-configuring` skill walks through it and writes the file, and any `hpc`
+tool call that can't reach the cluster replies with that machine's exact setup
+instructions.
 
 ### Verify — hard gate
 
 **Do not proceed until this check passes.**
 
-Call the HPC agent's `get_facility()` MCP tool. If it returns a facility
-description, the agent is connected. If it errors:
-- Check that the plugin was reloaded after installation.
-- Check that `ssh.host` in the config file is reachable (`ssh <host> echo ok`).
-- Do not continue to step 5 until `get_facility()` succeeds.
+Call `get_facility(facility="<slug>")`, then a cheap live call such as
+`fs_ls(facility="<slug>", path="~")`. If both return, hpc-rookery is
+connected. If either errors:
+- Check that the plugins were reloaded after installation.
+- Follow the setup instructions in the error, or run the facility's
+  `<slug>-configuring` skill.
+- Check that the SSH host is reachable (`ssh <host> echo ok`).
+- Do not continue to step 5 until the check succeeds.
 
 ---
 
@@ -187,8 +194,9 @@ so it persists.
 ### Cluster install (cluster mode only)
 
 The compute node needs nebskill too — the submitted job runs `nebskill-neb …`
-directly. Install it **through the HPC agent** (it owns the connection). Using
-the agent's file/exec tools, run a short install job on the cluster:
+directly. Install it **through hpc-rookery** (it owns the connection) with
+`run_command_on_cluster(facility="<slug>", command=...)` — show the user the
+exact command and get their permission first, as that tool requires:
 
 ```bash
 pip install 'nebskill @ git+https://github.com/william-dawson/nebskill.git' \
@@ -196,7 +204,7 @@ pip install 'nebskill @ git+https://github.com/william-dawson/nebskill.git' \
 ```
 
 Show the user the output. **Verify** with a quick `nebskill-load --help` via
-the HPC agent's exec tool (or a short `submit_job`). If the command is not found,
+`run_command_on_cluster` (or a short `submit_job`). If the command is not found,
 the cluster's `~/.local/bin` may not be on PATH — ask the user to add it in their
 `~/.bashrc` on the cluster.
 
@@ -238,13 +246,15 @@ skill knows where and how jobs dispatch. Skip this file in local mode.
 
 ```yaml
 # Generated by configuring-machine
-hpc_agent: hokusai           # or: rikyu — the companion plugin that submits jobs
+facility: hokusai            # hpc-rookery facility slug: rikyu, fugaku, miyabi, …
 remote_project_dir: ~/nebskill-project   # base directory for remote job files
 ```
 
-The `hpc_agent` value must match the installed plugin name (`hokusai` or
-`rikyu`). This is what the prerequisites checks in each pipeline skill read to
-determine whether to dispatch to a cluster or run locally.
+`facility` must be a slug that `get_facilities()` lists; every hpc-rookery
+call passes it. This file is what the prerequisites checks in each pipeline
+skill read to determine whether to dispatch to a cluster or run locally.
+(An older file with `hpc_agent: hokusai` / `rikyu` predates hpc-rookery; those
+values are valid slugs, so rename the key to `facility`.)
 
 ---
 
@@ -257,7 +267,7 @@ to reload on its side. The user can now run NEB calculations:
   `nebskill-*` commands directly.
 - **Cluster mode**: cheap steps (`load`, `analyze`, `plot`) run locally;
   compute steps (`relax`, `neb`, `frequencies`) are planned with
-  `nebskill-plan` and dispatched by the HPC agent — see the
+  `nebskill-plan` and dispatched by hpc-rookery — see the
   **running-on-the-cluster** skill.
 
 Suggest running the **demo** skill next to confirm the full pipeline works.

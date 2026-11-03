@@ -62,14 +62,15 @@ Stop.
 ```bash
 cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
 ```
-- **File present**: note `hpc_agent` (hokusai / rikyu) and `remote_project_dir`.
-  Compute steps will dispatch to the cluster through that HPC agent.
+- **File present**: note `facility` (the hpc-rookery slug, e.g. `hokusai`,
+  `rikyu`, `fugaku`) and `remote_project_dir`. Compute steps will dispatch to
+  that facility through hpc-rookery's `hpc` plugin.
 - **File absent**: local mode — ORCA runs on this machine, all steps run
   in-process.
 
-If cluster mode, verify the HPC agent is reachable by calling its
-`get_facility()` MCP tool. If it errors, tell the user:
-> "The HPC agent isn't responding. Re-run the **nebskill-configuring-machine** skill to reconnect."
+If cluster mode, verify the cluster is reachable by calling hpc-rookery's
+`get_facility(facility=<facility>)` MCP tool. If it errors, tell the user:
+> "hpc-rookery can't reach the cluster. Re-run the **nebskill-configuring-machine** skill to reconnect."
 Stop.
 
 ### Reaction data
@@ -125,7 +126,7 @@ as a CLI flag to the relevant script. Do not modify the yaml files.
 Execute each step in order by running its CLI command. Read the step's skill
 for details, then report a brief summary before moving to the next. The relax
 and neb commands are compute jobs. For cluster runs, plan them with
-`nebskill-plan` and dispatch them through the companion HPC agent plugin
+`nebskill-plan` and dispatch them through hpc-rookery
 (`/nebskill:nebskill-running-on-the-cluster`).
 
 1. **Load reaction** — run `nebskill-load --reaction-id INT`

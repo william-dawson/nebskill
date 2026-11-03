@@ -107,7 +107,7 @@ right but won't settle:
 | Better starting path | `--sidpp` (sequential IDPP) | kinking from a poor initial guess |
 | Seed / warm-start the path | `--ts-guess ts.xyz` / `--restart-path prev.allxyz` | the band keeps settling in the wrong basin — seed it through a known/likely TS or a prior MEP |
 
-On a cluster, watch ORCA's `neb.out` via the HPC agent's `fs_tail` (the
+On a cluster, watch ORCA's `neb.out` via hpc-rookery's `fs_tail` (the
 per-iteration max/RMS perpendicular force and the climbing-image energy) — that
 is the live convergence signal for a native ORCA NEB.
 
@@ -141,7 +141,7 @@ Read `outputs/reaction_{id:04d}/neb_result.json`.
 **A retry that changes a parameter** (`--n-images`, `--neb-type`, …) is a new
 run: it gets its own parameter-derived attempt directory (locally and on the
 cluster), so it never clobbers the previous attempt. Plan and dispatch it like
-any other run — `nebskill-plan neb …` then the HPC agent loop
+any other run — `nebskill-plan neb …` then the hpc-rookery loop
 (`/nebskill:nebskill-running-on-the-cluster`). **Re-running the exact same command** after
 a crash or timeout simply re-uses that same attempt directory; just dispatch it
 again (the agent submits a fresh job).

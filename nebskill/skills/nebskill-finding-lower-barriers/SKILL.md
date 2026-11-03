@@ -30,8 +30,9 @@ Missing → stop. Run **nebskill-configuring-machine**.
 ```bash
 cat nebskill_cluster.yaml 2>/dev/null || echo "(absent — local mode)"
 ```
-- Present → cluster mode; call the HPC agent's `get_facility()` to confirm it's
-  reachable. If it errors → stop, re-run **nebskill-configuring-machine**.
+- Present → cluster mode; call hpc-rookery's `get_facility(facility=<facility>)`
+  with the `facility` slug from the file to confirm it's reachable. If it errors →
+  stop, re-run **nebskill-configuring-machine**.
 - Absent → local mode.
 
 ---
@@ -110,7 +111,7 @@ settle into a different basin:
 `/nebskill:nebskill-monitoring-convergence` to land it — but expect the converged barrier
 to be path-determined, not optimizer-determined.)
 
-Background long runs and watch ORCA's `neb.out` (via the HPC agent's `fs_tail`).
+Background long runs and watch ORCA's `neb.out` (via hpc-rookery's `fs_tail`).
 Once you've tried several parameter sets, `nebskill-summary --reaction-id N`
 prints every attempt's barrier, deviation from the dataset, and convergence in
 one table — use it to see which attempt (if any) found a lower barrier.

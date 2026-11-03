@@ -33,11 +33,19 @@ the Python package.
 ## How jobs reach the cluster
 
 nebskill doesn't talk to the cluster itself. It authors each compute job
-(`nebskill-plan` emits the command and the files to move); a companion HPC agent
-plugin run it — [Rikyu-Agent](https://github.com/RIKEN-RCCS/Rikyu-Agent)
-for RIKEN AI4S, [Hokusai-Agent](https://github.com/RIKEN-RCCS/Hokusai-Agent) for
-HBW2. Install the one for your cluster alongside nebskill (setup walks you
-through it).
+(`nebskill-plan` emits the command and the files to move), and
+[hpc-rookery](https://github.com/william-dawson/hpc-rookery) runs it: its base
+`hpc` plugin provides the MCP tools (upload, submit, monitor, download) for any
+supported facility — RIKYU (AI4S), HOKUSAI (HBW2), Fugaku, Miyabi, R-CCS Cloud,
+Crux and more — and a per-facility `hpc-<slug>` skill pack carries that
+machine's know-how. Install the base plugin and the pack for your cluster
+alongside nebskill (setup walks you through it):
+
+```
+/plugin marketplace add william-dawson/hpc-rookery
+/plugin install hpc@hpc-marketplace
+/plugin install hpc-<slug>@hpc-marketplace
+```
 
 ## Baseline Usage
 
@@ -71,7 +79,7 @@ reactions. Three tools support it:
 The skills run in pipeline order:
 
 - **`/nebskill:nebskill-configuring-machine`** — one-time setup: capture the cluster's
-  ORCA recipe, install/connect the companion HPC agent, and `pip` install.
+  ORCA recipe, install/connect hpc-rookery, and `pip` install.
 - **`/nebskill:nebskill-demo`** — run one reaction end-to-end (load → relax → NEB →
   analyze) to see the pipeline work and reproduce a published barrier. Best
   starting point after setup.
@@ -81,8 +89,8 @@ The skills run in pipeline order:
 - **`/nebskill:nebskill-running-neb`** — native ORCA NEB (NEB-CI / NEB-TS) to find the
   minimum energy path and barrier.
 - **`/nebskill:nebskill-running-on-the-cluster`** — dispatch a compute step (relax, neb,
-  frequencies) to an HPC cluster: nebskill plans the job, a companion HPC agent
-  plugin (Rikyu/Hokusai) submits it and moves the files.
+  frequencies) to an HPC cluster: nebskill plans the job, hpc-rookery submits
+  it and moves the files.
 - **`/nebskill:nebskill-monitoring-convergence`** — diagnose a non-converged NEB from
   ORCA's `neb.out` and retry with adjusted levers (images, spring constant,
   NEB-TS, optimizer, path seeding).
@@ -114,6 +122,7 @@ are native ORCA jobs — plan them with `nebskill-plan <step>` and dispatch via
 
 - [Claude Code](https://claude.ai/code)
 - Python with `pip` (or `pip3`) — installed on virtually all HPC systems
-- For cluster runs: a companion HPC agent plugin (Rikyu for AI4S, Hokusai for
-  HBW2). Optional if running locally on a shared-filesystem login node.
+- For cluster runs: [hpc-rookery](https://github.com/william-dawson/hpc-rookery)
+  (the `hpc` plugin plus your facility's `hpc-<slug>` pack). Optional if running
+  locally on a shared-filesystem login node.
 - An ORCA install on the cluster (binary + modules); ORCA DFT runs on CPU.

@@ -1,9 +1,9 @@
-"""nebskill-plan — emit a compute step as a JSON job plan for the HPC agent.
+"""nebskill-plan — emit a compute step as a JSON job plan for hpc-rookery.
 
 nebskill does not submit jobs. It authors them: this command computes the
 attempt directory, stages the input files, and prints a JobPlan describing the
 command, the upload/download file manifest, the live progress file, and a
-resource hint. A companion HPC agent plugin (Rikyu for AI4S, Hokusai for HBW2)
+resource hint. The hpc-rookery `hpc` plugin (william-dawson/hpc-rookery)
 takes that plan and runs it through its MCP tools — fs_upload the inputs,
 submit_job the command (wrapped in the cluster's scheduler script with the
 right account/partition/modules), fs_tail the progress file, then fs_download
@@ -26,7 +26,7 @@ from nebskill.prepare import (prepare_frequencies, prepare_goat, prepare_irc,
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Emit a compute step as a JSON job plan for the HPC agent")
+        description="Emit a compute step as a JSON job plan for hpc-rookery")
     sub = parser.add_subparsers(dest="step", required=True)
 
     common = argparse.ArgumentParser(add_help=False)
